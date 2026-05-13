@@ -11,631 +11,322 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>LumoVoice — Lumos for your library</title>
 
-  <!-- Fonts: Cinzel (magical/ancient) + EB Garamond (storybook body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
-  <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
 
   <style>
     :root {
-      --bg:          #0D0B18;
-      --bg-mid:      #14112B;
-      --bg-card:     #1C1830;
-      --bg-card-lt:  #231E3D;
-      --gold:        #F0C040;
-      --gold-dim:    #A07C1A;
-      --gold-glow:   rgba(240,192,64,.18);
-      --amber:       #E8852A;
-      --ink:         #EDE8D8;
-      --ink-muted:   #9990B8;
-      --border:      rgba(240,192,64,.15);
-      --green:       #3CB371;
-      --green-lt:    rgba(60,179,113,.15);
-      --shadow:      rgba(0,0,0,.45);
-      --radius:      14px;
-      --font-head:   'Cinzel', 'Palatino Linotype', serif;
-      --font-body:   'EB Garamond', Georgia, serif;
+      --bg:         #0D0B18;
+      --bg-card:    #1C1830;
+      --gold:       #F0C040;
+      --gold-dim:   #A07C1A;
+      --gold-glow:  rgba(240,192,64,.18);
+      --amber:      #E8852A;
+      --ink:        #EDE8D8;
+      --ink-muted:  #9990B8;
+      --border:     rgba(240,192,64,.15);
+      --green:      #3CB371;
+      --green-lt:   rgba(60,179,113,.15);
+      --radius:     14px;
+      --font-head:  'Cinzel','Palatino Linotype',serif;
+      --font-body:  'EB Garamond',Georgia,serif;
     }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: var(--font-body);
-      font-size: 18px;
-      -webkit-text-size-adjust: 100%;
-      overflow-x: hidden;
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    html,body {
+      height:100%; background:var(--bg); color:var(--ink);
+      font-family:var(--font-body); font-size:18px;
+      -webkit-text-size-adjust:100%; overflow-x:hidden;
     }
-
-    /* Star field background */
     body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
       background-image:
-        radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 72% 8%,  rgba(255,255,255,.4) 0%, transparent 100%),
-        radial-gradient(1px 1px at 40% 55%, rgba(255,255,255,.3) 0%, transparent 100%),
-        radial-gradient(1px 1px at 88% 42%, rgba(255,255,255,.45) 0%, transparent 100%),
-        radial-gradient(1px 1px at 5%  80%, rgba(255,255,255,.35) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,.3) 0%, transparent 100%),
-        radial-gradient(1px 1px at 30% 3%,  rgba(255,255,255,.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 95% 70%, rgba(255,255,255,.4) 0%, transparent 100%),
-        radial-gradient(2px 2px at 50% 30%, rgba(240,192,64,.3) 0%, transparent 100%),
-        radial-gradient(2px 2px at 80% 60%, rgba(240,192,64,.2) 0%, transparent 100%);
-      pointer-events: none;
-      z-index: 0;
+        radial-gradient(1px 1px at 15% 20%,rgba(255,255,255,.5) 0%,transparent 100%),
+        radial-gradient(1px 1px at 72%  8%,rgba(255,255,255,.4) 0%,transparent 100%),
+        radial-gradient(1px 1px at 40% 55%,rgba(255,255,255,.3) 0%,transparent 100%),
+        radial-gradient(1px 1px at 88% 42%,rgba(255,255,255,.45) 0%,transparent 100%),
+        radial-gradient(2px 2px at 50% 30%,rgba(240,192,64,.3) 0%,transparent 100%),
+        radial-gradient(2px 2px at 80% 60%,rgba(240,192,64,.2) 0%,transparent 100%);
     }
+    .view { display:none; min-height:100dvh; position:relative; z-index:1; }
+    .view.active { display:flex; flex-direction:column; }
 
-    /* ── VIEWS ──────────────────────────────── */
-    .view { display: none; min-height: 100dvh; position: relative; z-index: 1; }
-    .view.active { display: flex; flex-direction: column; }
-
-    /* ── TOP NAV ────────────────────────────── */
+    /* NAV */
     .topnav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      background: rgba(13,11,24,.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 24px; background:rgba(13,11,24,.85);
+      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50;
     }
     .topnav-logo {
-      font-family: var(--font-head);
-      font-size: 1.35rem;
-      letter-spacing: .08em;
-      color: var(--gold);
-      text-shadow: 0 0 20px rgba(240,192,64,.5);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-family:var(--font-head); font-size:1.35rem; letter-spacing:.08em;
+      color:var(--gold); text-shadow:0 0 20px rgba(240,192,64,.5);
+      display:flex; align-items:center; gap:8px;
     }
-    .topnav-logo .wand { font-size: 1.1rem; }
 
-    /* ── BUTTONS ────────────────────────────── */
+    /* BUTTONS */
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 10px 20px;
-      border-radius: 100px;
-      font-family: var(--font-body);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: opacity .15s, transform .1s, box-shadow .2s;
+      display:inline-flex; align-items:center; gap:7px; padding:10px 20px;
+      border-radius:100px; font-family:var(--font-body); font-size:1rem;
+      font-weight:600; cursor:pointer; border:none;
+      transition:opacity .15s,transform .1s,box-shadow .2s;
     }
-    .btn:active { transform: scale(.96); }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-      color: #0D0B18;
-      font-weight: 700;
-    }
-    .btn-primary:hover { box-shadow: 0 0 18px rgba(240,192,64,.45); }
-    .btn-ghost {
-      background: rgba(240,192,64,.1);
-      color: var(--gold);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { background: rgba(240,192,64,.18); }
-    .btn-outline {
-      background: transparent;
-      border: 1.5px solid rgba(255,255,255,.2);
-      color: var(--ink);
-    }
-    .btn-green { background: var(--green); color: #fff; }
-    .btn-sm { padding: 7px 16px; font-size: .88rem; }
-    .btn:disabled { opacity: .35; cursor: default; }
+    .btn:active { transform:scale(.96); }
+    .btn-primary { background:linear-gradient(135deg,var(--gold) 0%,var(--amber) 100%); color:#0D0B18; font-weight:700; }
+    .btn-primary:hover { box-shadow:0 0 18px rgba(240,192,64,.45); }
+    .btn-ghost { background:rgba(240,192,64,.1); color:var(--gold); border:1px solid var(--border); }
+    .btn-outline { background:transparent; border:1.5px solid rgba(255,255,255,.2); color:var(--ink); }
+    .btn-green { background:var(--green); color:#fff; }
+    .btn-sm { padding:7px 16px; font-size:.88rem; }
+    .btn:disabled { opacity:.35; cursor:default; }
 
-    /* ── LIBRARY VIEW ───────────────────────── */
-    #view-library .content {
-      flex: 1;
-      padding: 28px 24px;
-      max-width: 900px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    /* Hero spell text */
-    .hero {
-      text-align: center;
-      padding: 32px 0 28px;
-    }
+    /* LIBRARY */
+    #view-library .content { flex:1; padding:28px 24px; max-width:900px; margin:0 auto; width:100%; }
+    .hero { text-align:center; padding:32px 0 28px; }
     .hero-spell {
-      font-family: var(--font-head);
-      font-size: clamp(2rem, 8vw, 3.5rem);
-      font-weight: 700;
-      color: var(--gold);
-      text-shadow: 0 0 40px rgba(240,192,64,.6), 0 0 80px rgba(240,192,64,.2);
-      letter-spacing: .12em;
-      animation: glow-pulse 3s ease-in-out infinite;
+      font-family:var(--font-head); font-size:clamp(2rem,8vw,3.5rem); font-weight:700;
+      color:var(--gold); letter-spacing:.12em; animation:glow-pulse 3s ease-in-out infinite;
     }
     @keyframes glow-pulse {
-      0%,100% { text-shadow: 0 0 30px rgba(240,192,64,.5), 0 0 60px rgba(240,192,64,.2); }
-      50%      { text-shadow: 0 0 50px rgba(240,192,64,.8), 0 0 100px rgba(240,192,64,.35); }
+      0%,100% { text-shadow:0 0 30px rgba(240,192,64,.5),0 0 60px rgba(240,192,64,.2); }
+      50%      { text-shadow:0 0 50px rgba(240,192,64,.8),0 0 100px rgba(240,192,64,.35); }
     }
-    .hero-sub {
-      margin-top: 8px;
-      font-size: 1.05rem;
-      color: var(--ink-muted);
-      font-style: italic;
-    }
-
+    .hero-sub { margin-top:8px; font-size:1.05rem; color:var(--ink-muted); font-style:italic; }
     .upload-zone {
-      border: 2px dashed rgba(240,192,64,.3);
-      border-radius: var(--radius);
-      padding: 36px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-      margin-bottom: 32px;
-      background: rgba(240,192,64,.03);
+      border:2px dashed rgba(240,192,64,.3); border-radius:var(--radius);
+      padding:36px 24px; text-align:center; cursor:pointer;
+      transition:border-color .2s,background .2s; margin-bottom:32px; background:rgba(240,192,64,.03);
     }
-    .upload-zone:hover, .upload-zone.drag-over {
-      border-color: var(--gold);
-      background: var(--gold-glow);
-    }
-    .upload-zone-icon { font-size: 2.4rem; margin-bottom: 10px; }
-    .upload-zone p { color: var(--ink-muted); font-size: 1rem; line-height: 1.6; }
-    .upload-zone strong { color: var(--gold); }
-    #file-input { display: none; }
-
+    .upload-zone:hover,.upload-zone.drag-over { border-color:var(--gold); background:var(--gold-glow); }
+    .upload-zone-icon { font-size:2.4rem; margin-bottom:10px; }
+    .upload-zone p { color:var(--ink-muted); font-size:1rem; line-height:1.6; }
+    .upload-zone strong { color:var(--gold); }
+    #file-input { display:none; }
     .section-title {
-      font-family: var(--font-head);
-      font-size: 1.1rem;
-      font-weight: 600;
-      letter-spacing: .1em;
-      color: var(--gold-dim);
-      text-transform: uppercase;
-      margin-bottom: 18px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
+      font-family:var(--font-head); font-size:1.1rem; font-weight:600;
+      letter-spacing:.1em; color:var(--gold-dim); text-transform:uppercase;
+      margin-bottom:18px; padding-bottom:10px; border-bottom:1px solid var(--border);
     }
-
-    .pdf-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-      gap: 16px;
-    }
-
+    .pdf-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:16px; }
     .pdf-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      cursor: pointer;
-      transition: transform .2s, box-shadow .2s, border-color .2s;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
+      overflow:hidden; cursor:pointer; transition:transform .2s,box-shadow .2s,border-color .2s;
     }
-    .pdf-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 32px rgba(240,192,64,.12);
-      border-color: rgba(240,192,64,.35);
-    }
+    .pdf-card:hover { transform:translateY(-4px); box-shadow:0 8px 32px rgba(240,192,64,.12); border-color:rgba(240,192,64,.35); }
     .pdf-card-cover {
-      height: 110px;
-      background: linear-gradient(135deg, #1C1830 0%, #2D1F4E 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.2rem;
-      position: relative;
-      overflow: hidden;
+      height:110px; background:linear-gradient(135deg,#1C1830 0%,#2D1F4E 100%);
+      display:flex; align-items:center; justify-content:center; font-size:2.2rem; position:relative; overflow:hidden;
     }
-    .pdf-card-cover::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 50% 60%, rgba(240,192,64,.12) 0%, transparent 70%);
-    }
-    .pdf-card-body { padding: 13px; }
+    .pdf-card-cover::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 60%,rgba(240,192,64,.12) 0%,transparent 70%); }
+    .pdf-card-body { padding:13px; }
     .pdf-card-title {
-      font-family: var(--font-head);
-      font-size: .88rem;
-      font-weight: 600;
-      line-height: 1.35;
-      margin-bottom: 7px;
-      color: var(--ink);
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      font-family:var(--font-head); font-size:.88rem; font-weight:600; line-height:1.35;
+      margin-bottom:7px; color:var(--ink); overflow:hidden;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
     }
-    .pdf-card-meta {
-      font-size: .8rem;
-      color: var(--ink-muted);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .has-recording { color: var(--green); font-weight: 600; }
+    .pdf-card-meta { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; justify-content:space-between; }
+    .has-recording { color:var(--green); font-weight:600; }
+    .empty-state { text-align:center; padding:60px 24px; color:var(--ink-muted); grid-column:1/-1; }
+    .empty-state .icon { font-size:2.8rem; margin-bottom:14px; }
+    .empty-state p { font-size:1.1rem; font-style:italic; }
 
-    .empty-state {
-      text-align: center;
-      padding: 60px 24px;
-      color: var(--ink-muted);
-      grid-column: 1/-1;
-    }
-    .empty-state .icon { font-size: 2.8rem; margin-bottom: 14px; }
-    .empty-state p { font-size: 1.1rem; font-style: italic; }
-
-    /* ── READER VIEW ────────────────────────── */
-    #view-reader {
-      background: #080710;
-    }
-
+    /* READER */
+    #view-reader { background:#080710; }
     .reader-nav {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 20px;
-      background: rgba(8,7,16,.88);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      display:flex; align-items:center; gap:12px; padding:12px 20px;
+      background:rgba(8,7,16,.88); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:50;
+      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
     }
     .reader-nav .title {
-      flex: 1;
-      font-family: var(--font-head);
-      font-size: .9rem;
-      letter-spacing: .04em;
-      color: var(--gold);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      flex:1; font-family:var(--font-head); font-size:.9rem; letter-spacing:.04em;
+      color:var(--gold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .back-btn {
-      background: rgba(240,192,64,.1);
-      border: 1px solid var(--border);
-      color: var(--gold);
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background .15s;
+      background:rgba(240,192,64,.1); border:1px solid var(--border); color:var(--gold);
+      width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1rem;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .15s;
     }
-    .back-btn:hover { background: rgba(240,192,64,.2); }
+    .back-btn:hover { background:rgba(240,192,64,.2); }
+    .pdf-canvas-wrap { flex:1; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:20px 12px; gap:12px; }
+    #pdf-canvas { max-width:100%; border-radius:6px; box-shadow:0 4px 40px rgba(0,0,0,.7); }
+    .page-indicator { color:var(--ink-muted); font-size:.9rem; text-align:center; font-style:italic; }
 
-    .pdf-canvas-wrap {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px 12px;
-      gap: 12px;
-    }
-    #pdf-canvas {
-      max-width: 100%;
-      border-radius: 6px;
-      box-shadow: 0 4px 40px rgba(0,0,0,.7), 0 0 60px rgba(240,192,64,.05);
-    }
-    .page-indicator {
-      color: var(--ink-muted);
-      font-size: .9rem;
-      text-align: center;
-      font-style: italic;
-    }
-
-    /* ── CONTROLS PANEL ─────────────────────── */
+    /* CONTROLS */
     .controls-panel {
-      background: #0F0C20;
-      border-top: 1px solid var(--border);
-      padding: 16px 20px;
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      background:#0F0C20; border-top:1px solid var(--border);
+      padding:16px 20px; padding-bottom:max(16px,env(safe-area-inset-bottom));
     }
-
-    /* Tabs */
     .tab-strip {
-      display: flex;
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      padding: 3px;
-      margin-bottom: 16px;
+      display:flex; background:rgba(255,255,255,.04); border:1px solid var(--border);
+      border-radius:100px; padding:3px; margin-bottom:16px;
     }
     .tab-btn {
-      flex: 1;
-      padding: 8px;
-      border: none;
-      background: transparent;
-      color: var(--ink-muted);
-      font-family: var(--font-body);
-      font-size: .9rem;
-      font-weight: 600;
-      border-radius: 100px;
-      cursor: pointer;
-      transition: background .2s, color .2s;
+      flex:1; padding:8px; border:none; background:transparent; color:var(--ink-muted);
+      font-family:var(--font-body); font-size:.9rem; font-weight:600; border-radius:100px;
+      cursor:pointer; transition:background .2s,color .2s;
     }
-    .tab-btn.active {
-      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-      color: #0D0B18;
-    }
+    .tab-btn.active { background:linear-gradient(135deg,var(--gold) 0%,var(--amber) 100%); color:#0D0B18; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
 
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* Page nav */
-    .page-nav {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
+    .page-nav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:14px; }
     .page-nav-btn {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      border: 1px solid rgba(240,192,64,.25);
-      background: transparent;
-      color: var(--gold);
-      font-size: 1rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background .15s;
+      width:38px; height:38px; border-radius:50%; border:1px solid rgba(240,192,64,.25);
+      background:transparent; color:var(--gold); font-size:1rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:background .15s;
     }
-    .page-nav-btn:hover { background: var(--gold-glow); }
-    .page-nav-btn:disabled { opacity: .25; cursor: default; }
+    .page-nav-btn:hover { background:var(--gold-glow); }
+    .page-nav-btn:disabled { opacity:.25; cursor:default; }
     .page-num-input {
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(240,192,64,.2);
-      color: var(--ink);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 1rem;
-      width: 80px;
-      text-align: center;
+      background:rgba(255,255,255,.06); border:1px solid rgba(240,192,64,.2); color:var(--ink);
+      padding:6px 12px; border-radius:8px; font-family:var(--font-body); font-size:1rem; width:80px; text-align:center;
     }
 
-    /* TTS controls */
-    .tts-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 13px;
-    }
+    .tts-row { display:flex; align-items:center; gap:12px; margin-bottom:13px; }
     .tts-play-btn {
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
-      border: none;
-      color: #0D0B18;
-      font-size: 1.3rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: box-shadow .2s, transform .1s;
+      width:52px; height:52px; border-radius:50%;
+      background:linear-gradient(135deg,var(--gold) 0%,var(--amber) 100%);
+      border:none; color:#0D0B18; font-size:1.3rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      transition:box-shadow .2s,transform .1s;
     }
-    .tts-play-btn:hover { box-shadow: 0 0 20px rgba(240,192,64,.5); }
-    .tts-play-btn:active { transform: scale(.93); }
-    .tts-play-btn.playing {
-      background: linear-gradient(135deg, var(--amber) 0%, #C4622D 100%);
-    }
+    .tts-play-btn:hover { box-shadow:0 0 20px rgba(240,192,64,.5); }
+    .tts-play-btn:active { transform:scale(.93); }
+    .tts-play-btn.playing { background:linear-gradient(135deg,var(--amber) 0%,#C4622D 100%); }
+    .speed-wrap { flex:1; display:flex; flex-direction:column; gap:4px; }
+    .speed-label { font-size:.78rem; color:var(--ink-muted); display:flex; justify-content:space-between; }
+    .speed-slider { width:100%; accent-color:var(--gold); cursor:pointer; }
+    .tts-status { font-size:.85rem; color:var(--ink-muted); margin-top:8px; min-height:20px; font-style:italic; }
 
-    .speed-wrap {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    /* ENGINE TOGGLE */
+    .engine-toggle { display:flex; gap:8px; margin-bottom:14px; }
+    .engine-btn {
+      flex:1; padding:8px 10px; border-radius:10px; border:1.5px solid var(--border);
+      background:transparent; color:var(--ink-muted);
+      font-family:var(--font-body); font-size:.88rem; font-weight:600;
+      cursor:pointer; transition:all .2s; text-align:center;
     }
-    .speed-label {
-      font-size: .78rem;
-      color: var(--ink-muted);
-      display: flex;
-      justify-content: space-between;
-    }
-    .speed-slider {
-      width: 100%;
-      accent-color: var(--gold);
-      cursor: pointer;
-    }
+    .engine-btn.active { border-color:var(--gold); color:var(--gold); background:var(--gold-glow); }
 
     .voice-select {
-      width: 100%;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(240,192,64,.2);
-      color: var(--ink);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: .95rem;
-      margin-top: 4px;
+      width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(240,192,64,.2);
+      color:var(--ink); padding:8px 12px; border-radius:8px;
+      font-family:var(--font-body); font-size:.95rem; margin-top:4px;
     }
-    .voice-select option { background: #0F0C20; color: var(--ink); }
+    .voice-select option { background:#0F0C20; color:var(--ink); }
 
-    .tts-status {
-      font-size: .85rem;
-      color: var(--ink-muted);
-      margin-top: 8px;
-      min-height: 20px;
-      font-style: italic;
+    /* KOKORO PANEL */
+    .kokoro-download-box {
+      background:rgba(240,192,64,.05); border:1px dashed rgba(240,192,64,.25);
+      border-radius:12px; padding:18px; text-align:center;
     }
+    .kokoro-download-box p { font-size:.9rem; color:var(--ink-muted); line-height:1.6; margin-bottom:14px; }
+    .kokoro-download-box p strong { color:var(--gold); }
+    .kokoro-dl-bar { background:rgba(255,255,255,.08); border-radius:100px; height:6px; overflow:hidden; margin:12px 0 8px; }
+    .kokoro-dl-fill { height:100%; border-radius:100px; background:linear-gradient(90deg,var(--gold),var(--amber)); transition:width .4s; }
+    .kokoro-dl-label { font-size:.8rem; color:var(--ink-muted); font-style:italic; }
 
-    /* Recording controls */
+    /* VOICE CARDS */
+    .voice-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+    .voice-card {
+      background:rgba(255,255,255,.04); border:1.5px solid rgba(240,192,64,.12);
+      border-radius:10px; padding:10px 12px; cursor:pointer; transition:border-color .2s,background .2s;
+    }
+    .voice-card:hover { border-color:rgba(240,192,64,.35); background:rgba(240,192,64,.06); }
+    .voice-card.selected { border-color:var(--gold); background:var(--gold-glow); }
+    .voice-card-name {
+      font-family:var(--font-head); font-size:.85rem; font-weight:600; color:var(--ink);
+      margin-bottom:2px; display:flex; align-items:center; gap:5px;
+    }
+    .vc-badge { font-size:.58rem; background:var(--gold); color:#0D0B18; padding:1px 5px; border-radius:4px; font-family:var(--font-body); font-weight:700; }
+    .voice-card-desc { font-size:.75rem; color:var(--ink-muted); line-height:1.4; margin-bottom:6px; }
+    .voice-preview-btn {
+      padding:3px 9px; border-radius:100px; border:1px solid rgba(240,192,64,.25);
+      background:transparent; color:var(--gold); font-size:.72rem; cursor:pointer;
+      font-family:var(--font-body); transition:background .15s;
+    }
+    .voice-preview-btn:hover { background:var(--gold-glow); }
+    .voice-preview-btn:disabled { opacity:.35; cursor:default; }
+
+    .gen-indicator { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:.82rem; color:var(--ink-muted); font-style:italic; }
+    .gen-dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:gdot .8s ease-in-out infinite; }
+    .gen-dot:nth-child(2){animation-delay:.15s} .gen-dot:nth-child(3){animation-delay:.3s}
+    @keyframes gdot { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+
+    /* RECORDING */
     .rec-status-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      padding: 10px 14px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      display:flex; align-items:center; gap:10px; margin-bottom:14px;
+      padding:10px 14px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:10px;
     }
-    .rec-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.15);
-      flex-shrink: 0;
-    }
-    .rec-dot.active {
-      background: #E53E3E;
-      animation: pulse-rec 1s ease-in-out infinite;
-    }
-    @keyframes pulse-rec {
-      0%,100% { opacity: 1; transform: scale(1); }
-      50%      { opacity: .4; transform: scale(.75); }
-    }
-    .rec-label { flex: 1; font-size: .9rem; color: var(--ink-muted); font-style: italic; }
-    .rec-timer { font-family: monospace; font-size: 1rem; color: var(--ink-muted); }
-
-    .rec-btn-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .rec-btn-row .btn { flex: 1; justify-content: center; }
-
+    .rec-dot { width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.15); flex-shrink:0; }
+    .rec-dot.active { background:#E53E3E; animation:prec 1s ease-in-out infinite; }
+    @keyframes prec { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+    .rec-label { flex:1; font-size:.9rem; color:var(--ink-muted); font-style:italic; }
+    .rec-timer { font-family:monospace; font-size:1rem; color:var(--ink-muted); }
+    .rec-btn-row { display:flex; gap:10px; margin-bottom:12px; }
+    .rec-btn-row .btn { flex:1; justify-content:center; }
     .rec-saved-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: var(--green-lt);
-      border: 1px solid rgba(60,179,113,.25);
-      border-radius: 10px;
+      display:flex; align-items:center; gap:10px; padding:10px 14px;
+      background:var(--green-lt); border:1px solid rgba(60,179,113,.25); border-radius:10px;
     }
-    .rec-saved-row .icon { font-size: 1.2rem; }
-    .rec-saved-row .label { flex: 1; font-size: .9rem; color: var(--green); }
+    .rec-saved-row .icon { font-size:1.2rem; }
+    .rec-saved-row .label { flex:1; font-size:.9rem; color:var(--green); }
+    audio { width:100%; margin-top:10px; border-radius:8px; }
 
-    audio {
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 8px;
-    }
-
-    /* ── UPLOAD MODAL ───────────────────────── */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.75);
-      z-index: 100;
-      align-items: flex-end;
-      justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
+    /* MODAL */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:100; align-items:flex-end; justify-content:center; }
+    .modal-overlay.open { display:flex; }
     .modal {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 20px 20px 0 0;
-      padding: 28px 24px;
-      padding-bottom: max(28px, env(safe-area-inset-bottom));
-      width: 100%;
-      max-width: 600px;
-      animation: slideUp .25s ease;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:20px 20px 0 0;
+      padding:28px 24px; padding-bottom:max(28px,env(safe-area-inset-bottom));
+      width:100%; max-width:600px; animation:sup .25s ease;
     }
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to   { transform: translateY(0); }
-    }
-    .modal-title {
-      font-family: var(--font-head);
-      font-size: 1.3rem;
-      color: var(--gold);
-      margin-bottom: 20px;
-      letter-spacing: .05em;
-    }
-    .progress-bar-wrap {
-      background: rgba(255,255,255,.08);
-      border-radius: 100px;
-      height: 6px;
-      overflow: hidden;
-      margin: 16px 0;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--gold), var(--amber));
-      border-radius: 100px;
-      transition: width .3s;
-    }
-    .modal-msg { font-size: .95rem; color: var(--ink-muted); font-style: italic; }
+    @keyframes sup { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-title { font-family:var(--font-head); font-size:1.3rem; color:var(--gold); margin-bottom:20px; letter-spacing:.05em; }
+    .progress-bar-wrap { background:rgba(255,255,255,.08); border-radius:100px; height:6px; overflow:hidden; margin:16px 0; }
+    .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--gold),var(--amber)); border-radius:100px; transition:width .3s; }
+    .modal-msg { font-size:.95rem; color:var(--ink-muted); font-style:italic; }
 
-    /* ── TOAST ──────────────────────────────── */
+    /* TOAST */
     .toast {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%) translateY(16px);
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--ink);
-      padding: 11px 22px;
-      border-radius: 100px;
-      font-size: .93rem;
-      z-index: 200;
-      opacity: 0;
-      transition: opacity .3s, transform .3s;
-      pointer-events: none;
-      white-space: nowrap;
-      box-shadow: 0 4px 24px rgba(0,0,0,.5);
+      position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(16px);
+      background:var(--bg-card); border:1px solid var(--border); color:var(--ink);
+      padding:11px 22px; border-radius:100px; font-size:.93rem; z-index:200;
+      opacity:0; transition:opacity .3s,transform .3s; pointer-events:none;
+      white-space:nowrap; box-shadow:0 4px 24px rgba(0,0,0,.5);
     }
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-    /* ── RESPONSIVE ─────────────────────────── */
-    @media (min-width: 600px) {
-      .pdf-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
-      .controls-panel { padding: 20px 32px; }
-      .reader-nav { padding: 14px 32px; }
+    @media(min-width:600px) {
+      .pdf-grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+      .controls-panel { padding:20px 32px; }
+      .reader-nav { padding:14px 32px; }
     }
   </style>
 </head>
 <body>
 
-<!-- ══ LIBRARY VIEW ══════════════════════════════════════════ -->
+<!-- LIBRARY -->
 <div id="view-library" class="view active">
   <nav class="topnav">
-    <div class="topnav-logo">
-      <span class="wand">🪄</span> LumoVoice
-    </div>
+    <div class="topnav-logo">🪄 LumoVoice</div>
     <button class="btn btn-ghost btn-sm" id="open-upload-btn">&#8679; Add Tome</button>
   </nav>
-
   <div class="content">
     <div class="hero">
       <div class="hero-spell">Lumos</div>
       <div class="hero-sub">Let there be light — and voice.</div>
     </div>
-
     <div class="upload-zone" id="drop-zone">
       <div class="upload-zone-icon">📜</div>
       <p>Drop a PDF here to add it to your collection<br><strong>or tap to summon a file</strong></p>
       <input type="file" id="file-input" accept="application/pdf">
     </div>
-
     <div class="section-title">Your Collection</div>
     <div class="pdf-grid" id="pdf-grid">
       <div class="empty-state" id="empty-state">
@@ -646,17 +337,13 @@
   </div>
 </div>
 
-<!-- ══ READER VIEW ════════════════════════════════════════════ -->
+<!-- READER -->
 <div id="view-reader" class="view">
   <nav class="reader-nav">
     <button class="back-btn" id="back-btn">&#8592;</button>
     <div class="title" id="reader-title">Loading…</div>
-    <button class="btn btn-sm" id="delete-pdf-btn"
-      style="background:rgba(255,80,80,.12);color:rgba(255,120,120,.8);border:1px solid rgba(255,80,80,.2);font-size:.8rem;padding:6px 12px;">
-      &#128465;
-    </button>
+    <button class="btn btn-sm" id="delete-pdf-btn" style="background:rgba(255,80,80,.12);color:rgba(255,120,120,.8);border:1px solid rgba(255,80,80,.2);font-size:.8rem;padding:6px 12px;">🗑</button>
   </nav>
-
   <div class="pdf-canvas-wrap" id="pdf-canvas-wrap">
     <canvas id="pdf-canvas"></canvas>
     <p class="page-indicator" id="page-indicator">Page 1 of 1</p>
@@ -668,83 +355,97 @@
       <button class="tab-btn" data-tab="record">🎙 Record Voice</button>
     </div>
 
-    <!-- TTS PANEL -->
+    <!-- LISTEN TAB -->
     <div class="tab-panel active" id="tab-tts">
       <div class="page-nav">
         <button class="page-nav-btn" id="prev-btn">&#8592;</button>
         <input type="number" class="page-num-input" id="page-num-input" value="1" min="1">
         <button class="page-nav-btn" id="next-btn">&#8594;</button>
       </div>
-
       <div class="tts-row">
         <button class="tts-play-btn" id="tts-play-btn">&#9654;</button>
         <div class="speed-wrap">
-          <div class="speed-label">
-            <span>Pace</span>
-            <span id="speed-val">1.0×</span>
-          </div>
+          <div class="speed-label"><span>Pace</span><span id="speed-val">1.0×</span></div>
           <input type="range" class="speed-slider" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
         </div>
       </div>
 
-      <select class="voice-select" id="voice-select">
-        <option>Loading voices…</option>
-      </select>
+      <!-- Engine toggle -->
+      <div class="engine-toggle">
+        <button class="engine-btn active" data-engine="device">🗣 Device Voice</button>
+        <button class="engine-btn" data-engine="kokoro">✨ AI Voice (Kokoro)</button>
+      </div>
+
+      <!-- Device panel -->
+      <div id="panel-device">
+        <select class="voice-select" id="voice-select"><option>Loading voices…</option></select>
+      </div>
+
+      <!-- Kokoro panel -->
+      <div id="panel-kokoro" style="display:none">
+
+        <!-- Download state -->
+        <div id="kokoro-dl-box" class="kokoro-download-box">
+          <p>Download the free <strong>Kokoro AI voice model</strong> once (~80 MB).<br>Dramatically better quality — stays on your device.</p>
+          <button class="btn btn-primary" id="kokoro-dl-btn" style="margin:0 auto;display:flex;">✨ Download AI Voices</button>
+          <div id="kokoro-dl-progress" style="display:none">
+            <div class="kokoro-dl-bar"><div class="kokoro-dl-fill" id="kokoro-dl-fill" style="width:0%"></div></div>
+            <div class="kokoro-dl-label" id="kokoro-dl-label">Starting…</div>
+          </div>
+        </div>
+
+        <!-- Voice card grid (shown after download) -->
+        <div id="kokoro-voices" style="display:none">
+          <div class="voice-grid" id="voice-card-grid"></div>
+          <div class="gen-indicator" id="gen-indicator" style="display:none">
+            <div class="gen-dot"></div><div class="gen-dot"></div><div class="gen-dot"></div>
+            <span id="gen-label">Generating…</span>
+          </div>
+        </div>
+
+      </div>
+
       <div class="tts-status" id="tts-status">Ready to read.</div>
     </div>
 
-    <!-- RECORD PANEL -->
+    <!-- RECORD TAB -->
     <div class="tab-panel" id="tab-record">
       <div class="rec-status-bar">
         <div class="rec-dot" id="rec-dot"></div>
         <div class="rec-label" id="rec-label">No recording in progress</div>
         <div class="rec-timer" id="rec-timer">0:00</div>
       </div>
-
       <div class="rec-btn-row">
         <button class="btn btn-green" id="rec-start-btn">&#9679; Start Recording</button>
         <button class="btn btn-outline" id="rec-stop-btn" disabled>&#9632; Stop</button>
       </div>
-
       <div id="rec-saved-wrap" style="display:none">
         <div class="rec-saved-row">
           <span class="icon">✅</span>
           <span class="label">Your voice recording is saved</span>
-          <button class="btn btn-sm" id="rec-delete-btn"
-            style="background:rgba(255,100,100,.15);color:rgba(255,120,120,.8);font-size:.8rem">
-            Remove
-          </button>
+          <button class="btn btn-sm" id="rec-delete-btn" style="background:rgba(255,100,100,.15);color:rgba(255,120,120,.8);font-size:.8rem">Remove</button>
         </div>
         <audio controls id="rec-playback"></audio>
       </div>
-
       <p style="font-size:.82rem;color:var(--ink-muted);margin-top:12px;line-height:1.6;font-style:italic">
-        Record yourself reading aloud — your voice will be stored alongside this PDF and available on all your devices.
+        Record yourself reading aloud — your voice is stored with this PDF and synced across your devices.
       </p>
     </div>
   </div>
 </div>
 
-<!-- ══ UPLOAD MODAL ══════════════════════════════════════════ -->
+<!-- MODAL -->
 <div class="modal-overlay" id="upload-modal">
   <div class="modal">
     <div class="modal-title" id="modal-title">✨ Uploading tome…</div>
-    <div class="progress-bar-wrap">
-      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
-    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
     <div class="modal-msg" id="modal-msg">Preparing…</div>
   </div>
 </div>
-
-<!-- ══ TOAST ══════════════════════════════════════════════════ -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-//  ⚙️  FIREBASE CONFIG
-//  Replace with your values from:
-//  Firebase Console → Project Settings → Your Apps → Web app
-// ═══════════════════════════════════════════════════════════
+// ══ FIREBASE CONFIG ══════════════════════════════════════════
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyALZgCJV9gqWYteraUXwmTIzujs-GBzfOs",
   authDomain:        "lumovoice-2ddc4.firebaseapp.com",
@@ -755,519 +456,423 @@ const FIREBASE_CONFIG = {
   measurementId:     "G-HP7Y1CX0BC"
 };
 
-// ═══════════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════════
-const state = {
-  pdfs:          [],
-  current:       null,
-  pdfDoc:        null,
-  page:          1,
-  totalPages:    0,
-  pageTexts:     {},
-  ttsActive:     false,
-  utterance:     null,
-  recActive:     false,
-  mediaRecorder: null,
-  audioChunks:   [],
-  recStartTime:  null,
-  recTimerID:    null,
-  recAudioURL:   null,
-  db:            null,
-  storage:       null,
+// ══ KOKORO VOICES ════════════════════════════════════════════
+const VOICES = [
+  { id:'af_heart',   name:'Heart',   badge:'⭐ Best', desc:'American Female · Warm & expressive' },
+  { id:'af_bella',   name:'Bella',   badge:null,      desc:'American Female · Clear & crisp' },
+  { id:'am_michael', name:'Michael', badge:null,      desc:'American Male · Warm & friendly' },
+  { id:'bm_george',  name:'George',  badge:null,      desc:'British Male · Deep & authoritative' },
+  { id:'bf_emma',    name:'Emma',    badge:null,      desc:'British Female · Elegant & refined' },
+];
+const PREVIEW_TEXT = 'Welcome to LumoVoice. I will be your reading companion today.';
+
+// ══ STATE ════════════════════════════════════════════════════
+const S = {
+  pdfs:[], current:null, pdfDoc:null, page:1, totalPages:0, pageTexts:{},
+  ttsActive:false, utterance:null,
+  engine:'device', kokoroTTS:null, kokoroReady:false, kokoroLoading:false,
+  kokoroVoice:'af_heart', audioCtx:null, currentSrc:null,
+  recActive:false, mediaRecorder:null, audioChunks:[],
+  recStartTime:null, recTimerID:null, recAudioURL:null,
+  db:null, storage:null,
 };
 
-// ═══════════════════════════════════════════════════════════
-//  FIREBASE INIT
-// ═══════════════════════════════════════════════════════════
+// ══ FIREBASE ═════════════════════════════════════════════════
 function initFirebase() {
-  if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY") {
-    toast("⚠️ Add your Firebase config in index.html to sync across devices");
-    return false;
-  }
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    state.db      = firebase.firestore();
-    state.storage = firebase.storage();
-    return true;
-  } catch(e) {
-    console.error("Firebase init error:", e);
-    toast("Firebase error — check your config");
-    return false;
-  }
+  try { firebase.initializeApp(FIREBASE_CONFIG); S.db = firebase.firestore(); S.storage = firebase.storage(); }
+  catch(e) { console.error('Firebase:', e); }
 }
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ═══════════════════════════════════════════════════════════
-//  PDF.js
-// ═══════════════════════════════════════════════════════════
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-// ═══════════════════════════════════════════════════════════
-//  LIBRARY
-// ═══════════════════════════════════════════════════════════
+// ══ LIBRARY ══════════════════════════════════════════════════
 async function loadLibrary() {
-  if (!state.db) { renderGrid([]); return; }
+  if (!S.db) { renderGrid([]); return; }
   try {
-    const snap = await state.db.collection('pdfs').orderBy('createdAt','desc').get();
-    state.pdfs  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderGrid(state.pdfs);
-  } catch(e) {
-    console.error(e);
-    toast("Couldn't load library — check Firestore rules");
-  }
+    const snap = await S.db.collection('pdfs').orderBy('createdAt','desc').get();
+    S.pdfs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderGrid(S.pdfs);
+  } catch(e) { toast('Could not load library'); }
 }
 
 function renderGrid(pdfs) {
-  const grid  = document.getElementById('pdf-grid');
-  const empty = document.getElementById('empty-state');
+  const grid = document.getElementById('pdf-grid'), empty = document.getElementById('empty-state');
   grid.innerHTML = '';
   if (!pdfs.length) { grid.appendChild(empty); return; }
   pdfs.forEach(pdf => {
-    const card = document.createElement('div');
-    card.className = 'pdf-card';
-    card.innerHTML = `
-      <div class="pdf-card-cover">📜</div>
-      <div class="pdf-card-body">
-        <div class="pdf-card-title">${escHtml(pdf.name)}</div>
-        <div class="pdf-card-meta">
-          <span>${pdf.pages ? pdf.pages + ' pp.' : ''}</span>
-          ${pdf.recordingUrl ? '<span class="has-recording">🎙 Voice</span>' : ''}
-        </div>
-      </div>`;
-    card.addEventListener('click', () => openReader(pdf));
-    grid.appendChild(card);
+    const c = document.createElement('div'); c.className = 'pdf-card';
+    c.innerHTML = `<div class="pdf-card-cover">📜</div><div class="pdf-card-body">
+      <div class="pdf-card-title">${escHtml(pdf.name)}</div>
+      <div class="pdf-card-meta"><span>${pdf.pages?pdf.pages+' pp.':''}</span>${pdf.recordingUrl?'<span class="has-recording">🎙 Voice</span>':''}</div>
+    </div>`;
+    c.addEventListener('click', () => openReader(pdf));
+    grid.appendChild(c);
   });
 }
 
-// ═══════════════════════════════════════════════════════════
-//  UPLOAD
-// ═══════════════════════════════════════════════════════════
+// ══ UPLOAD ═══════════════════════════════════════════════════
 async function uploadPDF(file) {
-  if (!file || file.type !== 'application/pdf') { toast("Please select a PDF file"); return; }
-  if (!state.db) { toast("⚠️ Configure Firebase first — see SETUP.md"); return; }
-
-  showModal("✨ Adding tome…", "Preparing…");
+  if (!file || file.type !== 'application/pdf') { toast('Please select a PDF'); return; }
+  if (!S.db) { toast('Firebase not configured'); return; }
+  showModal('✨ Adding tome…','Preparing…');
   try {
-    const arrayBuf = await file.arrayBuffer();
-    const tempDoc  = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-    const pages    = tempDoc.numPages;
-
-    const docRef      = state.db.collection('pdfs').doc();
-    const storagePath = `pdfs/${docRef.id}/${encodeURIComponent(file.name)}`;
-    const uploadTask  = state.storage.ref(storagePath).put(file);
-
-    uploadTask.on('state_changed',
-      snap => {
-        const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-        setProgress(pct, `Uploading… ${pct}%`);
-      },
-      err => { hideModal(); toast("Upload failed: " + err.message); },
+    const buf = await file.arrayBuffer();
+    const tmp = await pdfjsLib.getDocument({data:buf}).promise;
+    const pages = tmp.numPages;
+    const docRef = S.db.collection('pdfs').doc();
+    const spath = `pdfs/${docRef.id}/${encodeURIComponent(file.name)}`;
+    const task  = S.storage.ref(spath).put(file);
+    task.on('state_changed',
+      s => { const p=Math.round(s.bytesTransferred/s.totalBytes*100); setProgress(p,`Uploading… ${p}%`); },
+      err => { hideModal(); toast('Upload failed: '+err.message); },
       async () => {
-        setProgress(100, "Inscribing to library…");
-        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-        await docRef.set({
-          name: file.name, storagePath, downloadURL, pages,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          recordingUrl: null, lastPage: 1,
-        });
-        hideModal();
-        toast("✨ Tome added to your collection!");
-        await loadLibrary();
+        setProgress(100,'Inscribing to library…');
+        const url = await task.snapshot.ref.getDownloadURL();
+        await docRef.set({ name:file.name, storagePath:spath, downloadURL:url, pages,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp(), recordingUrl:null, lastPage:1 });
+        hideModal(); toast('✨ Tome added!'); await loadLibrary();
       }
     );
-  } catch(e) {
-    hideModal();
-    toast("Error: " + e.message);
-    console.error(e);
-  }
+  } catch(e) { hideModal(); toast('Error: '+e.message); }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  READER
-// ═══════════════════════════════════════════════════════════
-async function openReader(pdfMeta) {
-  state.current = pdfMeta;
-  showView('reader');
-  stopTTS();
-  document.getElementById('reader-title').textContent = pdfMeta.name;
-  document.getElementById('page-num-input').value = pdfMeta.lastPage || 1;
-
+// ══ READER ═══════════════════════════════════════════════════
+async function openReader(meta) {
+  S.current = meta; showView('reader'); stopAll();
+  document.getElementById('reader-title').textContent = meta.name;
+  document.getElementById('page-num-input').value = meta.lastPage || 1;
   try {
-    showModal("📖 Opening…", "Loading pages…");
-    const pdfDoc = await pdfjsLib.getDocument(pdfMeta.downloadURL).promise;
-    state.pdfDoc     = pdfDoc;
-    state.totalPages = pdfDoc.numPages;
-    state.pageTexts  = {};
+    showModal('📖 Opening…','Loading pages…');
+    const pdfDoc = await pdfjsLib.getDocument(meta.downloadURL).promise;
+    S.pdfDoc = pdfDoc; S.totalPages = pdfDoc.numPages; S.pageTexts = {};
     hideModal();
-
     document.getElementById('page-num-input').max = pdfDoc.numPages;
-    document.getElementById('prev-btn').disabled  = true;
-    document.getElementById('next-btn').disabled  = pdfDoc.numPages <= 1;
-
-    await renderPage(pdfMeta.lastPage || 1);
-    loadRecording(pdfMeta);
-  } catch(e) {
-    hideModal();
-    toast("Couldn't open tome: " + e.message);
-    console.error(e);
-  }
+    await renderPage(meta.lastPage || 1);
+    loadRecording(meta);
+  } catch(e) { hideModal(); toast('Could not open tome: '+e.message); console.error(e); }
 }
 
 async function renderPage(num) {
-  num = Math.max(1, Math.min(num, state.totalPages));
-  state.page = num;
-  document.getElementById('page-num-input').value       = num;
-  document.getElementById('page-indicator').textContent = `Page ${num} of ${state.totalPages}`;
-  document.getElementById('prev-btn').disabled          = num <= 1;
-  document.getElementById('next-btn').disabled          = num >= state.totalPages;
-
-  const page   = await state.pdfDoc.getPage(num);
+  num = Math.max(1, Math.min(num, S.totalPages));
+  S.page = num;
+  document.getElementById('page-num-input').value = num;
+  document.getElementById('page-indicator').textContent = `Page ${num} of ${S.totalPages}`;
+  document.getElementById('prev-btn').disabled = num <= 1;
+  document.getElementById('next-btn').disabled = num >= S.totalPages;
+  const page = await S.pdfDoc.getPage(num);
   const canvas = document.getElementById('pdf-canvas');
-  const ctx    = canvas.getContext('2d');
-  const maxW   = Math.min(document.getElementById('pdf-canvas-wrap').clientWidth - 24, 900);
-  const scale  = maxW / page.getViewport({ scale: 1 }).width;
-  const vp     = page.getViewport({ scale });
-
-  canvas.width  = vp.width;
-  canvas.height = vp.height;
-  await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-  if (!state.pageTexts[num]) {
+  const maxW = Math.min(document.getElementById('pdf-canvas-wrap').clientWidth - 24, 900);
+  const scale = maxW / page.getViewport({scale:1}).width;
+  const vp = page.getViewport({scale});
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+  if (!S.pageTexts[num]) {
     const tc = await page.getTextContent();
-    state.pageTexts[num] = tc.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+    S.pageTexts[num] = tc.items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
   }
-
-  if (state.db && state.current) {
-    state.db.collection('pdfs').doc(state.current.id).update({ lastPage: num }).catch(() => {});
-  }
+  if (S.db && S.current) S.db.collection('pdfs').doc(S.current.id).update({lastPage:num}).catch(()=>{});
 }
 
-function goToPage(n) {
-  const num = parseInt(n, 10);
-  if (!isNaN(num)) renderPage(num);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  TTS
-// ═══════════════════════════════════════════════════════════
+// ══ DEVICE TTS ═══════════════════════════════════════════════
 function populateVoices() {
-  const voices = speechSynthesis.getVoices();
-  const sel    = document.getElementById('voice-select');
+  const voices = speechSynthesis.getVoices(), sel = document.getElementById('voice-select');
   sel.innerHTML = '';
-  const eng = voices.filter(v => v.lang.startsWith('en'));
-  const all = eng.length ? eng : voices;
-  all.forEach((v, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = `${v.name} (${v.lang})`;
-    if (v.default) opt.selected = true;
-    sel.appendChild(opt);
+  const eng = voices.filter(v=>v.lang.startsWith('en'));
+  (eng.length?eng:voices).forEach((v,i) => {
+    const o=document.createElement('option'); o.value=i; o.textContent=`${v.name} (${v.lang})`;
+    if(v.default) o.selected=true; sel.appendChild(o);
   });
 }
-
-function getSelectedVoice() {
-  const all = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
-  const voices = all.length ? all : speechSynthesis.getVoices();
-  return voices[parseInt(document.getElementById('voice-select').value, 10)] || null;
+function getDeviceVoice() {
+  const voices=speechSynthesis.getVoices(), eng=voices.filter(v=>v.lang.startsWith('en')), all=eng.length?eng:voices;
+  return all[parseInt(document.getElementById('voice-select').value,10)] || null;
 }
-
-function startTTS() {
-  if (state.ttsActive) return;
-  const text = state.pageTexts[state.page];
-  if (!text) { toast("No readable text on this page"); return; }
-
+function startDeviceTTS() {
+  const text = S.pageTexts[S.page];
+  if (!text) { toast('No text on this page'); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.voice = getSelectedVoice();
+  u.voice = getDeviceVoice();
   u.rate  = parseFloat(document.getElementById('speed-slider').value);
-
-  u.onstart = () => { state.ttsActive = true; updateTTSUI(true); };
+  u.onstart = () => { S.ttsActive=true; updatePlayBtn(true); };
   u.onend   = async () => {
-    state.ttsActive = false;
-    if (state.page < state.totalPages) {
-      await renderPage(state.page + 1);
-      startTTS();
-    } else {
-      updateTTSUI(false);
-      setTTSStatus("Finished reading.");
-    }
+    if (!S.ttsActive) return;
+    if (S.page < S.totalPages) { await renderPage(S.page+1); startDeviceTTS(); }
+    else { S.ttsActive=false; updatePlayBtn(false); setStatus('Finished reading.'); }
   };
-  u.onerror = e => {
-    if (e.error !== 'interrupted') {
-      state.ttsActive = false;
-      updateTTSUI(false);
-      setTTSStatus("Playback stopped.");
-    }
-  };
+  u.onerror = e => { if(e.error!=='interrupted'){S.ttsActive=false;updatePlayBtn(false);setStatus('Stopped.');} };
   u.onboundary = e => {
-    if (e.name === 'word') {
-      const words = text.split(' ');
-      const word  = words[Math.floor(e.charIndex / (text.length / words.length))] || '';
-      setTTSStatus(`Reading: "${word.trim()}"`);
+    if (e.name==='word') {
+      const words=S.pageTexts[S.page].split(' ');
+      const w=words[Math.floor(e.charIndex/(S.pageTexts[S.page].length/words.length))]||'';
+      setStatus(`Reading: "${w.trim()}"`);
     }
   };
-
-  state.utterance = u;
-  speechSynthesis.speak(u);
+  S.utterance = u; speechSynthesis.speak(u);
 }
 
-function stopTTS() {
-  speechSynthesis.cancel();
-  state.ttsActive = false;
-  updateTTSUI(false);
-  setTTSStatus("Paused.");
+// ══ KOKORO TTS ═══════════════════════════════════════════════
+function getAudioCtx() {
+  if (!S.audioCtx) S.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (S.audioCtx.state==='suspended') S.audioCtx.resume();
+  return S.audioCtx;
+}
+async function playPCM(audio, sr) {
+  return new Promise(res => {
+    const ctx=getAudioCtx(), buf=ctx.createBuffer(1,audio.length,sr);
+    buf.getChannelData(0).set(audio);
+    const src=ctx.createBufferSource(); src.buffer=buf; src.connect(ctx.destination);
+    src.onended=res; src.start(0); S.currentSrc=src;
+  });
+}
+function stopKokoro() { try{if(S.currentSrc){S.currentSrc.stop();S.currentSrc=null;}}catch(e){} }
+
+function splitSentences(text) {
+  return (text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)||[text]).map(s=>s.trim()).filter(s=>s.length>4);
 }
 
-function toggleTTS() {
-  state.ttsActive ? stopTTS() : startTTS();
-}
-
-function updateTTSUI(playing) {
-  const btn = document.getElementById('tts-play-btn');
-  btn.innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
-  btn.classList.toggle('playing', playing);
-}
-
-function setTTSStatus(msg) {
-  document.getElementById('tts-status').textContent = msg;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  RECORDING
-// ═══════════════════════════════════════════════════════════
-function getSupportedMimeType() {
-  const types = [
-    'audio/webm;codecs=opus','audio/webm',
-    'audio/mp4;codecs=mp4a','audio/mp4',
-    'audio/ogg;codecs=opus',
-  ];
-  for (const t of types) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+async function readPageKokoro(num) {
+  if (!S.ttsActive) return;
+  const text = S.pageTexts[num];
+  if (!text) { S.ttsActive=false; updatePlayBtn(false); setStatus('No text on this page.'); return; }
+  const genEl=document.getElementById('gen-indicator'), genLbl=document.getElementById('gen-label');
+  genEl.style.display='flex';
+  for (const sent of splitSentences(text)) {
+    if (!S.ttsActive) break;
+    genLbl.textContent='Generating…'; setStatus(`🎙 ${sent.substring(0,48)}…`);
+    try {
+      const r = await S.kokoroTTS.generate(sent, {voice:S.kokoroVoice});
+      if (!S.ttsActive) break;
+      genLbl.textContent='Playing…'; await playPCM(r.audio, r.sampling_rate);
+    } catch(e) { console.error(e); setStatus('Error — try again.'); S.ttsActive=false; updatePlayBtn(false); genEl.style.display='none'; return; }
   }
+  genEl.style.display='none';
+  if (!S.ttsActive) return;
+  if (num < S.totalPages) { await renderPage(num+1); await readPageKokoro(num+1); }
+  else { S.ttsActive=false; updatePlayBtn(false); setStatus('Finished reading. ✨'); }
+}
+
+async function initKokoro() {
+  if (S.kokoroReady) return true;
+  if (S.kokoroLoading) return false;
+  S.kokoroLoading = true;
+  const dlBtn=document.getElementById('kokoro-dl-btn');
+  const dlProg=document.getElementById('kokoro-dl-progress');
+  const dlFill=document.getElementById('kokoro-dl-fill');
+  const dlLbl=document.getElementById('kokoro-dl-label');
+  dlBtn.disabled=true; dlProg.style.display='block';
+  dlLbl.textContent='Loading AI engine…';
+  try {
+    const {KokoroTTS} = await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.mjs');
+    dlLbl.textContent='Downloading voice model (~80 MB)…';
+    S.kokoroTTS = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0', {
+      dtype:'q8',
+      progress_callback: info => {
+        if (info.status==='downloading' && info.total) {
+          const p=Math.round(info.loaded/info.total*100);
+          dlFill.style.width=p+'%'; dlLbl.textContent=`Downloading… ${p}%`;
+        } else if (info.status==='loading') {
+          dlFill.style.width='95%'; dlLbl.textContent='Loading into memory…';
+        }
+      }
+    });
+    dlFill.style.width='100%'; dlLbl.textContent='✅ AI voices ready!';
+    S.kokoroReady=true; S.kokoroLoading=false;
+    setTimeout(() => {
+      document.getElementById('kokoro-dl-box').style.display='none';
+      buildVoiceCards();
+      document.getElementById('kokoro-voices').style.display='block';
+    }, 800);
+    return true;
+  } catch(e) {
+    console.error(e); dlLbl.textContent='❌ Failed — check connection and retry.';
+    dlBtn.disabled=false; S.kokoroLoading=false; return false;
+  }
+}
+
+function buildVoiceCards() {
+  const grid = document.getElementById('voice-card-grid'); grid.innerHTML='';
+  VOICES.forEach(v => {
+    const c=document.createElement('div'); c.className='voice-card'+(v.id===S.kokoroVoice?' selected':''); c.dataset.id=v.id;
+    c.innerHTML=`<div class="voice-card-name">${v.name}${v.badge?`<span class="vc-badge">${v.badge}</span>`:''}</div>
+      <div class="voice-card-desc">${v.desc}</div>
+      <button class="voice-preview-btn" data-id="${v.id}">▶ Preview</button>`;
+    c.addEventListener('click', e => { if(!e.target.classList.contains('voice-preview-btn')) selectVoice(v.id); });
+    c.querySelector('.voice-preview-btn').addEventListener('click', () => previewVoice(v.id));
+    grid.appendChild(c);
+  });
+}
+
+function selectVoice(id) {
+  S.kokoroVoice=id;
+  document.querySelectorAll('.voice-card').forEach(c=>c.classList.toggle('selected',c.dataset.id===id));
+  setStatus(`Voice: ${VOICES.find(v=>v.id===id)?.name}`);
+}
+
+async function previewVoice(id) {
+  if (!S.kokoroReady) return;
+  document.querySelectorAll('.voice-preview-btn').forEach(b=>b.disabled=true);
+  setStatus(`Previewing ${VOICES.find(v=>v.id===id)?.name}…`);
+  try { const r=await S.kokoroTTS.generate(PREVIEW_TEXT,{voice:id}); await playPCM(r.audio,r.sampling_rate); setStatus('Ready.'); }
+  catch(e) { setStatus('Preview failed.'); }
+  document.querySelectorAll('.voice-preview-btn').forEach(b=>b.disabled=false);
+}
+
+// ══ UNIFIED PLAY ═════════════════════════════════════════════
+async function toggleTTS() {
+  if (S.ttsActive) { stopAll(); setStatus('Paused.'); return; }
+  if (!S.pageTexts[S.page]) { toast('No readable text on this page'); return; }
+  if (S.engine==='kokoro') {
+    if (!S.kokoroReady) { toast('Download AI voices first ✨'); return; }
+    S.ttsActive=true; updatePlayBtn(true); setStatus('Starting AI voice…');
+    await readPageKokoro(S.page);
+  } else {
+    S.ttsActive=true; startDeviceTTS();
+  }
+}
+
+function stopAll() {
+  S.ttsActive=false; speechSynthesis.cancel(); stopKokoro(); updatePlayBtn(false);
+  document.getElementById('gen-indicator').style.display='none';
+}
+
+function updatePlayBtn(p) {
+  const b=document.getElementById('tts-play-btn');
+  b.innerHTML=p?'&#9646;&#9646;':'&#9654;'; b.classList.toggle('playing',p);
+}
+function setStatus(m) { document.getElementById('tts-status').textContent=m; }
+
+// ══ RECORDING ════════════════════════════════════════════════
+function getMime() {
+  for (const t of ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a','audio/mp4','audio/ogg;codecs=opus'])
+    if (typeof MediaRecorder!=='undefined'&&MediaRecorder.isTypeSupported(t)) return t;
   return '';
 }
-
 async function startRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mime   = getSupportedMimeType();
-    state.mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
-    state.audioChunks   = [];
-    state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.audioChunks.push(e.data); };
-    state.mediaRecorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); await saveRecording(); };
-    state.mediaRecorder.start(250);
-    state.recActive    = true;
-    state.recStartTime = Date.now();
-    startRecTimer();
-    updateRecUI();
-  } catch(e) {
-    toast("Microphone access denied");
-    console.error(e);
-  }
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true}), mime=getMime();
+    S.mediaRecorder=new MediaRecorder(stream, mime?{mimeType:mime}:{}); S.audioChunks=[];
+    S.mediaRecorder.ondataavailable=e=>{if(e.data.size>0)S.audioChunks.push(e.data);};
+    S.mediaRecorder.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());await saveRecording();};
+    S.mediaRecorder.start(250); S.recActive=true; S.recStartTime=Date.now();
+    startRecTimer(); updateRecUI();
+  } catch(e) { toast('Microphone access denied'); }
 }
-
 function stopRecording() {
-  if (state.mediaRecorder && state.recActive) {
-    state.mediaRecorder.stop();
-    state.recActive = false;
-    stopRecTimer();
-    updateRecUI();
-  }
+  if(S.mediaRecorder&&S.recActive){S.mediaRecorder.stop();S.recActive=false;stopRecTimer();updateRecUI();}
 }
-
 async function saveRecording() {
-  if (!state.audioChunks.length) return;
-  const mime    = getSupportedMimeType();
-  const ext     = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm';
-  const blob    = new Blob(state.audioChunks, { type: mime || 'audio/webm' });
-  state.recAudioURL = URL.createObjectURL(blob);
-  showRecordingSaved(state.recAudioURL);
-
-  if (state.db && state.current) {
+  if(!S.audioChunks.length) return;
+  const mime=getMime(), ext=mime.includes('mp4')?'mp4':mime.includes('ogg')?'ogg':'webm';
+  const blob=new Blob(S.audioChunks,{type:mime||'audio/webm'});
+  S.recAudioURL=URL.createObjectURL(blob); showRecSaved(S.recAudioURL);
+  if(S.db&&S.current){
     try {
-      const path = `recordings/${state.current.id}/recording.${ext}`;
-      const ref  = state.storage.ref(path);
-      await ref.put(blob, { contentType: mime || 'audio/webm' });
-      const url  = await ref.getDownloadURL();
-      await state.db.collection('pdfs').doc(state.current.id).update({ recordingUrl: url });
-      state.current.recordingUrl = url;
-      toast("🎙 Voice saved to your library!");
-    } catch(e) {
-      toast("Saved locally — cloud sync failed");
-      console.error(e);
-    }
-  } else {
-    toast("🎙 Recording saved (configure Firebase to sync)");
+      const path=`recordings/${S.current.id}/recording.${ext}`, ref=S.storage.ref(path);
+      await ref.put(blob,{contentType:mime||'audio/webm'});
+      const url=await ref.getDownloadURL();
+      await S.db.collection('pdfs').doc(S.current.id).update({recordingUrl:url});
+      S.current.recordingUrl=url; toast('🎙 Voice saved!');
+    } catch(e){toast('Saved locally — cloud sync failed');}
   }
 }
-
-function loadRecording(pdfMeta) {
-  const wrap  = document.getElementById('rec-saved-wrap');
-  const audio = document.getElementById('rec-playback');
-  if (pdfMeta.recordingUrl) {
-    audio.src = pdfMeta.recordingUrl;
-    wrap.style.display = 'block';
-  } else {
-    wrap.style.display = 'none';
-    audio.src = '';
-  }
+function loadRecording(meta) {
+  const w=document.getElementById('rec-saved-wrap'),a=document.getElementById('rec-playback');
+  if(meta.recordingUrl){a.src=meta.recordingUrl;w.style.display='block';}else{w.style.display='none';a.src='';}
 }
-
-function showRecordingSaved(url) {
-  document.getElementById('rec-playback').src = url;
-  document.getElementById('rec-saved-wrap').style.display = 'block';
-}
-
+function showRecSaved(url){document.getElementById('rec-playback').src=url;document.getElementById('rec-saved-wrap').style.display='block';}
 async function deleteRecording() {
-  if (!state.current || !confirm('Remove the voice recording for this PDF?')) return;
-  document.getElementById('rec-saved-wrap').style.display = 'none';
-  document.getElementById('rec-playback').src = '';
-  state.recAudioURL = null;
-  if (state.db && state.current.recordingUrl) {
-    try {
-      await state.storage.refFromURL(state.current.recordingUrl).delete();
-      await state.db.collection('pdfs').doc(state.current.id).update({ recordingUrl: null });
-      state.current.recordingUrl = null;
-      toast("Recording removed");
-    } catch(e) { toast("Couldn't remove from cloud"); }
+  if(!S.current||!confirm('Remove the voice recording?')) return;
+  document.getElementById('rec-saved-wrap').style.display='none';
+  document.getElementById('rec-playback').src=''; S.recAudioURL=null;
+  if(S.db&&S.current.recordingUrl){
+    try{await S.storage.refFromURL(S.current.recordingUrl).delete();await S.db.collection('pdfs').doc(S.current.id).update({recordingUrl:null});S.current.recordingUrl=null;toast('Recording removed');}
+    catch(e){toast('Couldn\'t remove from cloud');}
   }
 }
-
-function startRecTimer() {
-  const el = document.getElementById('rec-timer');
-  state.recTimerID = setInterval(() => {
-    const s = Math.floor((Date.now() - state.recStartTime) / 1000);
-    el.textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-  }, 500);
+function startRecTimer(){
+  const el=document.getElementById('rec-timer');
+  S.recTimerID=setInterval(()=>{const s=Math.floor((Date.now()-S.recStartTime)/1000);el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},500);
 }
-function stopRecTimer() { clearInterval(state.recTimerID); }
-
-function updateRecUI() {
-  document.getElementById('rec-dot').classList.toggle('active', state.recActive);
-  document.getElementById('rec-label').textContent = state.recActive ? 'Recording your voice…' : 'Ready to record';
-  document.getElementById('rec-start-btn').disabled = state.recActive;
-  document.getElementById('rec-stop-btn').disabled  = !state.recActive;
+function stopRecTimer(){clearInterval(S.recTimerID);}
+function updateRecUI(){
+  document.getElementById('rec-dot').classList.toggle('active',S.recActive);
+  document.getElementById('rec-label').textContent=S.recActive?'Recording your voice…':'Ready to record';
+  document.getElementById('rec-start-btn').disabled=S.recActive;
+  document.getElementById('rec-stop-btn').disabled=!S.recActive;
 }
 
-// ═══════════════════════════════════════════════════════════
-//  DELETE PDF
-// ═══════════════════════════════════════════════════════════
+// ══ DELETE PDF ═══════════════════════════════════════════════
 async function deletePDF() {
-  if (!state.current || !confirm(`Remove "${state.current.name}" from your collection?`)) return;
+  if(!S.current||!confirm(`Remove "${S.current.name}"?`)) return;
+  stopAll(); stopRecording();
   try {
-    stopTTS();
-    await state.storage.ref(state.current.storagePath).delete().catch(() => {});
-    if (state.current.recordingUrl) {
-      await state.storage.refFromURL(state.current.recordingUrl).delete().catch(() => {});
-    }
-    await state.db.collection('pdfs').doc(state.current.id).delete();
-    toast("Tome removed");
-    showView('library');
-    loadLibrary();
-  } catch(e) { toast("Couldn't remove: " + e.message); }
+    await S.storage.ref(S.current.storagePath).delete().catch(()=>{});
+    if(S.current.recordingUrl) await S.storage.refFromURL(S.current.recordingUrl).delete().catch(()=>{});
+    await S.db.collection('pdfs').doc(S.current.id).delete();
+    toast('Tome removed'); showView('library'); loadLibrary();
+  } catch(e){toast('Couldn\'t remove: '+e.message);}
 }
 
-// ═══════════════════════════════════════════════════════════
-//  UI HELPERS
-// ═══════════════════════════════════════════════════════════
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(`view-${name}`).classList.add('active');
-  if (name === 'library') { stopTTS(); stopRecording(); }
-}
-
-function showModal(title, msg) {
-  document.getElementById('modal-title').textContent    = title;
-  document.getElementById('modal-msg').textContent      = msg;
-  document.getElementById('progress-fill').style.width  = '0%';
-  document.getElementById('upload-modal').classList.add('open');
-}
-function hideModal() { document.getElementById('upload-modal').classList.remove('open'); }
-function setProgress(pct, msg) {
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('modal-msg').textContent     = msg;
-}
-
+// ══ HELPERS ══════════════════════════════════════════════════
+function showView(n){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+n).classList.add('active');if(n==='library'){stopAll();stopRecording();}}
+function showModal(t,m){document.getElementById('modal-title').textContent=t;document.getElementById('modal-msg').textContent=m;document.getElementById('progress-fill').style.width='0%';document.getElementById('upload-modal').classList.add('open');}
+function hideModal(){document.getElementById('upload-modal').classList.remove('open');}
+function setProgress(p,m){document.getElementById('progress-fill').style.width=p+'%';document.getElementById('modal-msg').textContent=m;}
 let toastTimer;
-function toast(msg, dur = 3500) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), dur);
-}
+function toast(m,d=3500){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),d);}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ═══════════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════════
+// ══ INIT ═════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  initFirebase();
-  loadLibrary();
+  initFirebase(); loadLibrary();
+  if(typeof speechSynthesis!=='undefined'){speechSynthesis.onvoiceschanged=populateVoices;populateVoices();}
 
-  if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.onvoiceschanged = populateVoices;
-    populateVoices();
-  }
+  const fi=document.getElementById('file-input'), dz=document.getElementById('drop-zone');
+  document.getElementById('open-upload-btn').addEventListener('click',()=>fi.click());
+  dz.addEventListener('click',()=>fi.click());
+  fi.addEventListener('change',e=>{if(e.target.files[0])uploadPDF(e.target.files[0]);fi.value='';});
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])uploadPDF(e.dataTransfer.files[0]);});
 
-  // Upload
-  const fileInput = document.getElementById('file-input');
-  const dropZone  = document.getElementById('drop-zone');
-  document.getElementById('open-upload-btn').addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', e => {
-    if (e.target.files[0]) uploadPDF(e.target.files[0]);
-    fileInput.value = '';
-  });
-  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    if (e.dataTransfer.files[0]) uploadPDF(e.dataTransfer.files[0]);
-  });
+  document.getElementById('back-btn').addEventListener('click',()=>showView('library'));
+  document.getElementById('delete-pdf-btn').addEventListener('click',deletePDF);
+  document.getElementById('prev-btn').addEventListener('click',()=>{stopAll();renderPage(S.page-1);});
+  document.getElementById('next-btn').addEventListener('click',()=>{stopAll();renderPage(S.page+1);});
+  document.getElementById('page-num-input').addEventListener('change',e=>{stopAll();renderPage(parseInt(e.target.value,10));});
 
-  // Reader nav
-  document.getElementById('back-btn').addEventListener('click', () => showView('library'));
-  document.getElementById('delete-pdf-btn').addEventListener('click', deletePDF);
+  document.getElementById('tts-play-btn').addEventListener('click',toggleTTS);
+  document.getElementById('speed-slider').addEventListener('input',e=>{document.getElementById('speed-val').textContent=parseFloat(e.target.value).toFixed(1)+'×';});
+  document.getElementById('voice-select').addEventListener('change',()=>{if(S.ttsActive&&S.engine==='device'){stopAll();toggleTTS();}});
 
-  // Page nav
-  document.getElementById('prev-btn').addEventListener('click', () => { stopTTS(); renderPage(state.page - 1); });
-  document.getElementById('next-btn').addEventListener('click', () => { stopTTS(); renderPage(state.page + 1); });
-  document.getElementById('page-num-input').addEventListener('change', e => { stopTTS(); goToPage(e.target.value); });
-
-  // TTS
-  document.getElementById('tts-play-btn').addEventListener('click', toggleTTS);
-  document.getElementById('speed-slider').addEventListener('input', e => {
-    document.getElementById('speed-val').textContent = parseFloat(e.target.value).toFixed(1) + '×';
-  });
-  document.getElementById('voice-select').addEventListener('change', () => {
-    if (state.ttsActive) { stopTTS(); startTTS(); }
-  });
-
-  // Recording
-  document.getElementById('rec-start-btn').addEventListener('click', startRecording);
-  document.getElementById('rec-stop-btn') .addEventListener('click', stopRecording);
-  document.getElementById('rec-delete-btn').addEventListener('click', deleteRecording);
-
-  // Tabs
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-btn')  .forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+  // Engine toggle
+  document.querySelectorAll('.engine-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      stopAll(); S.engine=btn.dataset.engine;
+      document.querySelectorAll('.engine-btn').forEach(b=>b.classList.toggle('active',b===btn));
+      document.getElementById('panel-device').style.display=S.engine==='device'?'block':'none';
+      document.getElementById('panel-kokoro').style.display=S.engine==='kokoro'?'block':'none';
+      setStatus(S.engine==='kokoro'?(S.kokoroReady?'AI voices ready. ✨':'Download AI voices to begin.'):'Ready to read.');
     });
   });
 
-  // Service Worker — unregister any stale old ones first, then register fresh
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      Promise.all(registrations.map(r => r.unregister())).then(() => {
-        navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  document.getElementById('kokoro-dl-btn').addEventListener('click',()=>initKokoro());
+  document.getElementById('rec-start-btn').addEventListener('click',startRecording);
+  document.getElementById('rec-stop-btn').addEventListener('click',stopRecording);
+  document.getElementById('rec-delete-btn').addEventListener('click',deleteRecording);
+
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const tab=btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
+      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+tab));
+    });
+  });
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      Promise.all(regs.map(r=>r.unregister())).then(()=>{
+        navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('SW:',e));
       });
     });
   }

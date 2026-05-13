@@ -1,73 +1,41 @@
-// PageVoice Service Worker
-const CACHE_NAME = 'lumovoice-v2';
-const PRECACHE = [
-  '/lumovoice/',
-  '/lumovoice/index.html',
-  '/lumovoice/sw.js',
-  '/lumovoice/manifest.json',
-  '/lumovoice/icon-192.png',
-  '/lumovoice/icon-512.png',
-];
-
-// External CDN resources to cache on first use
-const CDN_CACHE = 'lumovoice-cdn-v1';
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE))
-  );
-  self.skipWaiting();
-});
-
+// LumoVoice Service Worker — GitHub Pages compatible
+const CACHE = 'lumovoice-v3';
+ 
+// On install, skip waiting immediately
+self.addEventListener('install', () => self.skipWaiting());
+ 
+// On activate, clear ALL old caches and take control
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(k => k !== CACHE_NAME && k !== CDN_CACHE)
-          .map(k => caches.delete(k))
-      )
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
-
+ 
+// For everything: try network first, fall back to cache
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-
-  // Network-first for Firebase and API calls
+  // Don't touch Firebase or Google API requests — let them go direct
+  const url = event.request.url;
   if (
-    url.hostname.includes('firebaseio.com') ||
-    url.hostname.includes('firebasestorage') ||
-    url.hostname.includes('googleapis.com')
+    url.includes('firebaseio.com') ||
+    url.includes('firebasestorage') ||
+    url.includes('googleapis.com') ||
+    url.includes('gstatic.com')
   ) {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-    return;
+    return; // browser handles it normally
   }
-
-  // Cache-first for CDN resources (PDF.js, Firebase SDKs, fonts)
-  if (
-    url.hostname.includes('cdnjs.cloudflare.com') ||
-    url.hostname.includes('gstatic.com') ||
-    url.hostname.includes('fonts.googleapis.com') ||
-    url.hostname.includes('fonts.gstatic.com')
-  ) {
-    event.respondWith(
-      caches.open(CDN_CACHE).then(cache =>
-        cache.match(event.request).then(cached => {
-          if (cached) return cached;
-          return fetch(event.request).then(resp => {
-            cache.put(event.request, resp.clone());
-            return resp;
-          });
-        })
-      )
-    );
-    return;
-  }
-
-  // Cache-first for app shell
+ 
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    fetch(event.request)
+      .then(response => {
+        // Cache a copy of successful responses
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then(c => c.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request)) // offline fallback
   );
 });

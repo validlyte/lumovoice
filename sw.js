@@ -1,9 +1,12 @@
 // PageVoice Service Worker
-const CACHE_NAME = 'lumovoice-v1';
+const CACHE_NAME = 'lumovoice-v2';
 const PRECACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '/lumovoice/',
+  '/lumovoice/index.html',
+  '/lumovoice/sw.js',
+  '/lumovoice/manifest.json',
+  '/lumovoice/icon-192.png',
+  '/lumovoice/icon-512.png',
 ];
 
 // External CDN resources to cache on first use

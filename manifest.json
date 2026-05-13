@@ -2,7 +2,8 @@
   "name": "LumoVoice — Lumos for your library",
   "short_name": "LumoVoice",
   "description": "Upload PDFs and listen with text-to-speech or your own recorded voice",
-  "start_url": "/",
+  "start_url": "/lumovoice/index.html",
+  "scope": "/lumovoice/",
   "display": "standalone",
   "background_color": "#0D0B18",
   "theme_color": "#0D0B18",
@@ -21,5 +22,9 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["books", "education", "productivity"]
+  "categories": [
+    "books",
+    "education",
+    "productivity"
+  ]
 }

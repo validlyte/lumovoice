@@ -320,7 +320,7 @@
   <div class="content">
     <div class="hero">
       <div class="hero-spell">Lumos</div>
-      <div class="hero-sub">Enlightening Text Thru Voice.</div>
+      <div class="hero-sub">Let there be light — and voice.</div>
     </div>
     <div class="upload-zone" id="drop-zone">
       <div class="upload-zone-icon">📜</div>
@@ -685,21 +685,48 @@ function splitSentences(text) {
   return (text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)||[text]).map(s=>s.trim()).filter(s=>s.length>4);
 }
 
+async function genSentence(text) {
+  try { return await S.kokoroTTS.generate(text.trim(), { voice:S.kokoroVoice }); }
+  catch(e) { console.error('gen error:', e); return null; }
+}
+
 async function readPageKokoro(num) {
   if (!S.ttsActive) return;
   const text = S.pageTexts[num];
   if (!text) { S.ttsActive=false; updatePlayBtn(false); setStatus('No text on this page.'); return; }
-  const genEl=document.getElementById('gen-indicator'), genLbl=document.getElementById('gen-label');
-  genEl.style.display='flex';
-  for (const sent of splitSentences(text)) {
-    if (!S.ttsActive) break;
-    genLbl.textContent='Generating…'; setStatus(`🎙 ${sent.substring(0,48)}…`);
-    try {
-      const r = await S.kokoroTTS.generate(sent, {voice:S.kokoroVoice});
-      if (!S.ttsActive) break;
-      genLbl.textContent='Playing…'; await playPCM(r.audio, r.sampling_rate);
-    } catch(e) { console.error(e); setStatus('Error — try again.'); S.ttsActive=false; updatePlayBtn(false); genEl.style.display='none'; return; }
+
+  const sents = splitSentences(text);
+  if (!sents.length) {
+    if (num < S.totalPages) { await renderPage(num+1); await readPageKokoro(num+1); }
+    else { S.ttsActive=false; updatePlayBtn(false); setStatus('Finished reading. ✨'); }
+    return;
   }
+
+  const genEl=document.getElementById('gen-indicator'), genLbl=document.getElementById('gen-label');
+  genEl.style.display='flex'; genLbl.textContent='Preparing…';
+
+  // Pipeline: generate sentence i+1 while sentence i is playing
+  let nextPromise = genSentence(sents[0]);
+
+  for (let i = 0; i < sents.length; i++) {
+    if (!S.ttsActive) break;
+
+    // Kick off generation of NEXT sentence immediately — don't await it yet
+    const lookAhead = (i + 1 < sents.length) ? genSentence(sents[i + 1]) : null;
+
+    // Wait for current sentence (was started last iteration, or above for i=0)
+    const result = await nextPromise;
+    if (!S.ttsActive) break;
+
+    if (result) {
+      setStatus(`🎙 ${sents[i].substring(0, 50)}…`);
+      genLbl.textContent = i === 0 ? '▶ Playing…' : '▶ Streaming…';
+      await playPCM(result.audio, result.sampling_rate);
+    }
+
+    nextPromise = lookAhead;
+  }
+
   genEl.style.display='none';
   if (!S.ttsActive) return;
   if (num < S.totalPages) { await renderPage(num+1); await readPageKokoro(num+1); }
@@ -729,9 +756,21 @@ async function initKokoro() {
         throw new Error('CDN load failed: ' + e2.message);
       }
     }
-    dlLbl.textContent='Downloading voice model (~80 MB)…';
+    // Auto-detect best available device: WebGPU (fast) or WASM (universal)
+    let device = 'wasm', dtype = 'q8';
+    if (typeof navigator.gpu !== 'undefined') {
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (adapter) { device = 'webgpu'; dtype = 'fp32'; }
+      } catch(e) { /* fall through to wasm */ }
+    }
+    dlLbl.textContent = device === 'webgpu'
+      ? 'Downloading model — GPU acceleration detected ⚡'
+      : 'Downloading voice model (~80 MB)…';
+
     S.kokoroTTS = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-ONNX', {
-      dtype:'q8',
+      dtype,
+      device,
       progress_callback: info => {
         if (info.status==='downloading' && info.total) {
           const p=Math.round(info.loaded/info.total*100);
@@ -741,7 +780,10 @@ async function initKokoro() {
         }
       }
     });
-    dlFill.style.width='100%'; dlLbl.textContent='✅ AI voices ready!';
+    dlFill.style.width='100%';
+    dlLbl.textContent = device === 'webgpu'
+      ? '✅ AI voices ready! (GPU accelerated ⚡)'
+      : '✅ AI voices ready!';
     S.kokoroReady=true; S.kokoroLoading=false;
     setTimeout(() => {
       document.getElementById('kokoro-dl-box').style.display='none';

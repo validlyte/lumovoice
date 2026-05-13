@@ -376,6 +376,13 @@
         <button class="engine-btn" data-engine="kokoro">✨ AI Voice (Kokoro)</button>
       </div>
 
+      <!-- Skip margins toggle -->
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer;font-size:.85rem;color:var(--ink-muted);">
+        <input type="checkbox" id="skip-margins-toggle" checked
+          style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;">
+        Skip headers, footers &amp; footnotes while reading
+      </label>
+
       <!-- Device panel -->
       <div id="panel-device">
         <select class="voice-select" id="voice-select"><option>Loading voices…</option></select>
@@ -470,6 +477,7 @@ const PREVIEW_TEXT = 'Welcome to LumoVoice. I will be your reading companion tod
 const S = {
   pdfs:[], current:null, pdfDoc:null, page:1, totalPages:0, pageTexts:{},
   ttsActive:false, utterance:null,
+  skipMargins:true,  // filter headers, footers, footnotes
   engine:'device', kokoroTTS:null, kokoroReady:false, kokoroLoading:false,
   kokoroVoice:'af_heart', audioCtx:null, currentSrc:null,
   recActive:false, mediaRecorder:null, audioChunks:[],
@@ -566,10 +574,57 @@ async function renderPage(num) {
   canvas.width = vp.width; canvas.height = vp.height;
   await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
   if (!S.pageTexts[num]) {
-    const tc = await page.getTextContent();
-    S.pageTexts[num] = tc.items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+    S.pageTexts[num] = await extractCleanText(page);
   }
   if (S.db && S.current) S.db.collection('pdfs').doc(S.current.id).update({lastPage:num}).catch(()=>{});
+}
+
+// ══ SMART TEXT EXTRACTION ════════════════════════════════════
+async function extractCleanText(page) {
+  const vp    = page.getViewport({ scale:1 });
+  const H     = vp.height;
+  const tc    = await page.getTextContent();
+  const items = tc.items.filter(i => i.str && i.str.trim().length > 0);
+  if (!items.length) return '';
+
+  if (!S.skipMargins) {
+    return items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+  }
+
+  // Find median font size so we can spot footnotes (smaller than body)
+  const sizes = items
+    .map(i => Math.abs(i.transform[3]))
+    .filter(s => s > 2)
+    .sort((a,b) => a - b);
+  const median    = sizes[Math.floor(sizes.length / 2)] || 12;
+  const smallFont = median * 0.74; // below 74% of median = likely footnote/caption
+
+  // PDF y-coords: 0 = bottom, H = top
+  const headerLine   = H * 0.91;  // top 9%  → running headers
+  const footerLine   = H * 0.09;  // bot 9%  → footers & page numbers
+  const footnoteZone = H * 0.23;  // bot 23% → where footnotes live
+
+  const filtered = items.filter(item => {
+    const y    = item.transform[5];
+    const size = Math.abs(item.transform[3]);
+    const text = item.str.trim();
+
+    // Skip header band
+    if (y > headerLine) return false;
+
+    // Skip footer band
+    if (y < footerLine) return false;
+
+    // Skip standalone page numbers anywhere in the margin bands
+    if (/^\d{1,4}$/.test(text) && (y > headerLine * 0.97 || y < footerLine * 1.8)) return false;
+
+    // Skip footnotes: small font sitting in the lower quarter of the page
+    if (size > 0 && size < smallFont && y < footnoteZone) return false;
+
+    return true;
+  });
+
+  return filtered.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
 }
 
 // ══ DEVICE TTS ═══════════════════════════════════════════════
@@ -845,6 +900,12 @@ document.addEventListener('DOMContentLoaded', () => {
   dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
   dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])uploadPDF(e.dataTransfer.files[0]);});
+
+  document.getElementById('skip-margins-toggle').addEventListener('change', e => {
+    S.skipMargins = e.target.checked;
+    S.pageTexts = {}; // clear cached text so next read uses new setting
+    setStatus(S.skipMargins ? 'Headers & footers will be skipped.' : 'Reading full page text.');
+  });
 
   document.getElementById('back-btn').addEventListener('click',()=>showView('library'));
   document.getElementById('delete-pdf-btn').addEventListener('click',deletePDF);

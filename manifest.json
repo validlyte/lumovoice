@@ -1,0 +1,25 @@
+{
+  "name": "LumoVoice — Lumos for your library",
+  "short_name": "LumoVoice",
+  "description": "Upload PDFs and listen with text-to-speech or your own recorded voice",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0B18",
+  "theme_color": "#0D0B18",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["books", "education", "productivity"]
+}

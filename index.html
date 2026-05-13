@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LumoVoice">
+  <meta name="theme-color" content="#0D0B18">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>LumoVoice — Lumos for your library</title>
+
+  <!-- Fonts: Cinzel (magical/ancient) + EB Garamond (storybook body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+
+  <style>
+    :root {
+      --bg:          #0D0B18;
+      --bg-mid:      #14112B;
+      --bg-card:     #1C1830;
+      --bg-card-lt:  #231E3D;
+      --gold:        #F0C040;
+      --gold-dim:    #A07C1A;
+      --gold-glow:   rgba(240,192,64,.18);
+      --amber:       #E8852A;
+      --ink:         #EDE8D8;
+      --ink-muted:   #9990B8;
+      --border:      rgba(240,192,64,.15);
+      --green:       #3CB371;
+      --green-lt:    rgba(60,179,113,.15);
+      --shadow:      rgba(0,0,0,.45);
+      --radius:      14px;
+      --font-head:   'Cinzel', 'Palatino Linotype', serif;
+      --font-body:   'EB Garamond', Georgia, serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 18px;
+      -webkit-text-size-adjust: 100%;
+      overflow-x: hidden;
+    }
+
+    /* Star field background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 72% 8%,  rgba(255,255,255,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 40% 55%, rgba(255,255,255,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 88% 42%, rgba(255,255,255,.45) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5%  80%, rgba(255,255,255,.35) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 3%,  rgba(255,255,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 95% 70%, rgba(255,255,255,.4) 0%, transparent 100%),
+        radial-gradient(2px 2px at 50% 30%, rgba(240,192,64,.3) 0%, transparent 100%),
+        radial-gradient(2px 2px at 80% 60%, rgba(240,192,64,.2) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── VIEWS ──────────────────────────────── */
+    .view { display: none; min-height: 100dvh; position: relative; z-index: 1; }
+    .view.active { display: flex; flex-direction: column; }
+
+    /* ── TOP NAV ────────────────────────────── */
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(13,11,24,.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topnav-logo {
+      font-family: var(--font-head);
+      font-size: 1.35rem;
+      letter-spacing: .08em;
+      color: var(--gold);
+      text-shadow: 0 0 20px rgba(240,192,64,.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topnav-logo .wand { font-size: 1.1rem; }
+
+    /* ── BUTTONS ────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s, transform .1s, box-shadow .2s;
+    }
+    .btn:active { transform: scale(.96); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+      color: #0D0B18;
+      font-weight: 700;
+    }
+    .btn-primary:hover { box-shadow: 0 0 18px rgba(240,192,64,.45); }
+    .btn-ghost {
+      background: rgba(240,192,64,.1);
+      color: var(--gold);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(240,192,64,.18); }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,.2);
+      color: var(--ink);
+    }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-sm { padding: 7px 16px; font-size: .88rem; }
+    .btn:disabled { opacity: .35; cursor: default; }
+
+    /* ── LIBRARY VIEW ───────────────────────── */
+    #view-library .content {
+      flex: 1;
+      padding: 28px 24px;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Hero spell text */
+    .hero {
+      text-align: center;
+      padding: 32px 0 28px;
+    }
+    .hero-spell {
+      font-family: var(--font-head);
+      font-size: clamp(2rem, 8vw, 3.5rem);
+      font-weight: 700;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(240,192,64,.6), 0 0 80px rgba(240,192,64,.2);
+      letter-spacing: .12em;
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%,100% { text-shadow: 0 0 30px rgba(240,192,64,.5), 0 0 60px rgba(240,192,64,.2); }
+      50%      { text-shadow: 0 0 50px rgba(240,192,64,.8), 0 0 100px rgba(240,192,64,.35); }
+    }
+    .hero-sub {
+      margin-top: 8px;
+      font-size: 1.05rem;
+      color: var(--ink-muted);
+      font-style: italic;
+    }
+
+    .upload-zone {
+      border: 2px dashed rgba(240,192,64,.3);
+      border-radius: var(--radius);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin-bottom: 32px;
+      background: rgba(240,192,64,.03);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--gold);
+      background: var(--gold-glow);
+    }
+    .upload-zone-icon { font-size: 2.4rem; margin-bottom: 10px; }
+    .upload-zone p { color: var(--ink-muted); font-size: 1rem; line-height: 1.6; }
+    .upload-zone strong { color: var(--gold); }
+    #file-input { display: none; }
+
+    .section-title {
+      font-family: var(--font-head);
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      color: var(--gold-dim);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pdf-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 16px;
+    }
+
+    .pdf-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .pdf-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(240,192,64,.12);
+      border-color: rgba(240,192,64,.35);
+    }
+    .pdf-card-cover {
+      height: 110px;
+      background: linear-gradient(135deg, #1C1830 0%, #2D1F4E 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .pdf-card-cover::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 60%, rgba(240,192,64,.12) 0%, transparent 70%);
+    }
+    .pdf-card-body { padding: 13px; }
+    .pdf-card-title {
+      font-family: var(--font-head);
+      font-size: .88rem;
+      font-weight: 600;
+      line-height: 1.35;
+      margin-bottom: 7px;
+      color: var(--ink);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .pdf-card-meta {
+      font-size: .8rem;
+      color: var(--ink-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .has-recording { color: var(--green); font-weight: 600; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--ink-muted);
+      grid-column: 1/-1;
+    }
+    .empty-state .icon { font-size: 2.8rem; margin-bottom: 14px; }
+    .empty-state p { font-size: 1.1rem; font-style: italic; }
+
+    /* ── READER VIEW ────────────────────────── */
+    #view-reader {
+      background: #080710;
+    }
+
+    .reader-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(8,7,16,.88);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .reader-nav .title {
+      flex: 1;
+      font-family: var(--font-head);
+      font-size: .9rem;
+      letter-spacing: .04em;
+      color: var(--gold);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .back-btn {
+      background: rgba(240,192,64,.1);
+      border: 1px solid var(--border);
+      color: var(--gold);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .back-btn:hover { background: rgba(240,192,64,.2); }
+
+    .pdf-canvas-wrap {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 12px;
+      gap: 12px;
+    }
+    #pdf-canvas {
+      max-width: 100%;
+      border-radius: 6px;
+      box-shadow: 0 4px 40px rgba(0,0,0,.7), 0 0 60px rgba(240,192,64,.05);
+    }
+    .page-indicator {
+      color: var(--ink-muted);
+      font-size: .9rem;
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* ── CONTROLS PANEL ─────────────────────── */
+    .controls-panel {
+      background: #0F0C20;
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    /* Tabs */
+    .tab-strip {
+      display: flex;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 3px;
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: var(--font-body);
+      font-size: .9rem;
+      font-weight: 600;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+      color: #0D0B18;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Page nav */
+    .page-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .page-nav-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(240,192,64,.25);
+      background: transparent;
+      color: var(--gold);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+    }
+    .page-nav-btn:hover { background: var(--gold-glow); }
+    .page-nav-btn:disabled { opacity: .25; cursor: default; }
+    .page-num-input {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(240,192,64,.2);
+      color: var(--ink);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      width: 80px;
+      text-align: center;
+    }
+
+    /* TTS controls */
+    .tts-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+    .tts-play-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 100%);
+      border: none;
+      color: #0D0B18;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: box-shadow .2s, transform .1s;
+    }
+    .tts-play-btn:hover { box-shadow: 0 0 20px rgba(240,192,64,.5); }
+    .tts-play-btn:active { transform: scale(.93); }
+    .tts-play-btn.playing {
+      background: linear-gradient(135deg, var(--amber) 0%, #C4622D 100%);
+    }
+
+    .speed-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .speed-label {
+      font-size: .78rem;
+      color: var(--ink-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .speed-slider {
+      width: 100%;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .voice-select {
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(240,192,64,.2);
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: .95rem;
+      margin-top: 4px;
+    }
+    .voice-select option { background: #0F0C20; color: var(--ink); }
+
+    .tts-status {
+      font-size: .85rem;
+      color: var(--ink-muted);
+      margin-top: 8px;
+      min-height: 20px;
+      font-style: italic;
+    }
+
+    /* Recording controls */
+    .rec-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .rec-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      flex-shrink: 0;
+    }
+    .rec-dot.active {
+      background: #E53E3E;
+      animation: pulse-rec 1s ease-in-out infinite;
+    }
+    @keyframes pulse-rec {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.75); }
+    }
+    .rec-label { flex: 1; font-size: .9rem; color: var(--ink-muted); font-style: italic; }
+    .rec-timer { font-family: monospace; font-size: 1rem; color: var(--ink-muted); }
+
+    .rec-btn-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .rec-btn-row .btn { flex: 1; justify-content: center; }
+
+    .rec-saved-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--green-lt);
+      border: 1px solid rgba(60,179,113,.25);
+      border-radius: 10px;
+    }
+    .rec-saved-row .icon { font-size: 1.2rem; }
+    .rec-saved-row .label { flex: 1; font-size: .9rem; color: var(--green); }
+
+    audio {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 8px;
+    }
+
+    /* ── UPLOAD MODAL ───────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      padding: 28px 24px;
+      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 600px;
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-title {
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      color: var(--gold);
+      margin-bottom: 20px;
+      letter-spacing: .05em;
+    }
+    .progress-bar-wrap {
+      background: rgba(255,255,255,.08);
+      border-radius: 100px;
+      height: 6px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold), var(--amber));
+      border-radius: 100px;
+      transition: width .3s;
+    }
+    .modal-msg { font-size: .95rem; color: var(--ink-muted); font-style: italic; }
+
+    /* ── TOAST ──────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      padding: 11px 22px;
+      border-radius: 100px;
+      font-size: .93rem;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      white-space: nowrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── RESPONSIVE ─────────────────────────── */
+    @media (min-width: 600px) {
+      .pdf-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+      .controls-panel { padding: 20px 32px; }
+      .reader-nav { padding: 14px 32px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ LIBRARY VIEW ══════════════════════════════════════════ -->
+<div id="view-library" class="view active">
+  <nav class="topnav">
+    <div class="topnav-logo">
+      <span class="wand">🪄</span> LumoVoice
+    </div>
+    <button class="btn btn-ghost btn-sm" id="open-upload-btn">&#8679; Add Tome</button>
+  </nav>
+
+  <div class="content">
+    <div class="hero">
+      <div class="hero-spell">Lumos</div>
+      <div class="hero-sub">Let there be light — and voice.</div>
+    </div>
+
+    <div class="upload-zone" id="drop-zone">
+      <div class="upload-zone-icon">📜</div>
+      <p>Drop a PDF here to add it to your collection<br><strong>or tap to summon a file</strong></p>
+      <input type="file" id="file-input" accept="application/pdf">
+    </div>
+
+    <div class="section-title">Your Collection</div>
+    <div class="pdf-grid" id="pdf-grid">
+      <div class="empty-state" id="empty-state">
+        <div class="icon">🔮</div>
+        <p>Your library awaits its first tome…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ READER VIEW ════════════════════════════════════════════ -->
+<div id="view-reader" class="view">
+  <nav class="reader-nav">
+    <button class="back-btn" id="back-btn">&#8592;</button>
+    <div class="title" id="reader-title">Loading…</div>
+    <button class="btn btn-sm" id="delete-pdf-btn"
+      style="background:rgba(255,80,80,.12);color:rgba(255,120,120,.8);border:1px solid rgba(255,80,80,.2);font-size:.8rem;padding:6px 12px;">
+      &#128465;
+    </button>
+  </nav>
+
+  <div class="pdf-canvas-wrap" id="pdf-canvas-wrap">
+    <canvas id="pdf-canvas"></canvas>
+    <p class="page-indicator" id="page-indicator">Page 1 of 1</p>
+  </div>
+
+  <div class="controls-panel">
+    <div class="tab-strip">
+      <button class="tab-btn active" data-tab="tts">🔊 Listen</button>
+      <button class="tab-btn" data-tab="record">🎙 Record Voice</button>
+    </div>
+
+    <!-- TTS PANEL -->
+    <div class="tab-panel active" id="tab-tts">
+      <div class="page-nav">
+        <button class="page-nav-btn" id="prev-btn">&#8592;</button>
+        <input type="number" class="page-num-input" id="page-num-input" value="1" min="1">
+        <button class="page-nav-btn" id="next-btn">&#8594;</button>
+      </div>
+
+      <div class="tts-row">
+        <button class="tts-play-btn" id="tts-play-btn">&#9654;</button>
+        <div class="speed-wrap">
+          <div class="speed-label">
+            <span>Pace</span>
+            <span id="speed-val">1.0×</span>
+          </div>
+          <input type="range" class="speed-slider" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+      </div>
+
+      <select class="voice-select" id="voice-select">
+        <option>Loading voices…</option>
+      </select>
+      <div class="tts-status" id="tts-status">Ready to read.</div>
+    </div>
+
+    <!-- RECORD PANEL -->
+    <div class="tab-panel" id="tab-record">
+      <div class="rec-status-bar">
+        <div class="rec-dot" id="rec-dot"></div>
+        <div class="rec-label" id="rec-label">No recording in progress</div>
+        <div class="rec-timer" id="rec-timer">0:00</div>
+      </div>
+
+      <div class="rec-btn-row">
+        <button class="btn btn-green" id="rec-start-btn">&#9679; Start Recording</button>
+        <button class="btn btn-outline" id="rec-stop-btn" disabled>&#9632; Stop</button>
+      </div>
+
+      <div id="rec-saved-wrap" style="display:none">
+        <div class="rec-saved-row">
+          <span class="icon">✅</span>
+          <span class="label">Your voice recording is saved</span>
+          <button class="btn btn-sm" id="rec-delete-btn"
+            style="background:rgba(255,100,100,.15);color:rgba(255,120,120,.8);font-size:.8rem">
+            Remove
+          </button>
+        </div>
+        <audio controls id="rec-playback"></audio>
+      </div>
+
+      <p style="font-size:.82rem;color:var(--ink-muted);margin-top:12px;line-height:1.6;font-style:italic">
+        Record yourself reading aloud — your voice will be stored alongside this PDF and available on all your devices.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ UPLOAD MODAL ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">✨ Uploading tome…</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="modal-msg" id="modal-msg">Preparing…</div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ⚙️  FIREBASE CONFIG
+//  Replace with your values from:
+//  Firebase Console → Project Settings → Your Apps → Web app
+// ═══════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyALZgCJV9gqWYteraUXwmTIzujs-GBzfOs",
+  authDomain:        "lumovoice-2ddc4.firebaseapp.com",
+  projectId:         "lumovoice-2ddc4",
+  storageBucket:     "lumovoice-2ddc4.firebasestorage.app",
+  messagingSenderId: "196456143451",
+  appId:             "1:196456143451:web:5b5dc00adfde99fc25bd7e",
+  measurementId:     "G-HP7Y1CX0BC"
+};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+const state = {
+  pdfs:          [],
+  current:       null,
+  pdfDoc:        null,
+  page:          1,
+  totalPages:    0,
+  pageTexts:     {},
+  ttsActive:     false,
+  utterance:     null,
+  recActive:     false,
+  mediaRecorder: null,
+  audioChunks:   [],
+  recStartTime:  null,
+  recTimerID:    null,
+  recAudioURL:   null,
+  db:            null,
+  storage:       null,
+};
+
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE INIT
+// ═══════════════════════════════════════════════════════════
+function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY") {
+    toast("⚠️ Add your Firebase config in index.html to sync across devices");
+    return false;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    state.db      = firebase.firestore();
+    state.storage = firebase.storage();
+    return true;
+  } catch(e) {
+    console.error("Firebase init error:", e);
+    toast("Firebase error — check your config");
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PDF.js
+// ═══════════════════════════════════════════════════════════
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ═══════════════════════════════════════════════════════════
+//  LIBRARY
+// ═══════════════════════════════════════════════════════════
+async function loadLibrary() {
+  if (!state.db) { renderGrid([]); return; }
+  try {
+    const snap = await state.db.collection('pdfs').orderBy('createdAt','desc').get();
+    state.pdfs  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderGrid(state.pdfs);
+  } catch(e) {
+    console.error(e);
+    toast("Couldn't load library — check Firestore rules");
+  }
+}
+
+function renderGrid(pdfs) {
+  const grid  = document.getElementById('pdf-grid');
+  const empty = document.getElementById('empty-state');
+  grid.innerHTML = '';
+  if (!pdfs.length) { grid.appendChild(empty); return; }
+  pdfs.forEach(pdf => {
+    const card = document.createElement('div');
+    card.className = 'pdf-card';
+    card.innerHTML = `
+      <div class="pdf-card-cover">📜</div>
+      <div class="pdf-card-body">
+        <div class="pdf-card-title">${escHtml(pdf.name)}</div>
+        <div class="pdf-card-meta">
+          <span>${pdf.pages ? pdf.pages + ' pp.' : ''}</span>
+          ${pdf.recordingUrl ? '<span class="has-recording">🎙 Voice</span>' : ''}
+        </div>
+      </div>`;
+    card.addEventListener('click', () => openReader(pdf));
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UPLOAD
+// ═══════════════════════════════════════════════════════════
+async function uploadPDF(file) {
+  if (!file || file.type !== 'application/pdf') { toast("Please select a PDF file"); return; }
+  if (!state.db) { toast("⚠️ Configure Firebase first — see SETUP.md"); return; }
+
+  showModal("✨ Adding tome…", "Preparing…");
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const tempDoc  = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+    const pages    = tempDoc.numPages;
+
+    const docRef      = state.db.collection('pdfs').doc();
+    const storagePath = `pdfs/${docRef.id}/${encodeURIComponent(file.name)}`;
+    const uploadTask  = state.storage.ref(storagePath).put(file);
+
+    uploadTask.on('state_changed',
+      snap => {
+        const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+        setProgress(pct, `Uploading… ${pct}%`);
+      },
+      err => { hideModal(); toast("Upload failed: " + err.message); },
+      async () => {
+        setProgress(100, "Inscribing to library…");
+        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+        await docRef.set({
+          name: file.name, storagePath, downloadURL, pages,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          recordingUrl: null, lastPage: 1,
+        });
+        hideModal();
+        toast("✨ Tome added to your collection!");
+        await loadLibrary();
+      }
+    );
+  } catch(e) {
+    hideModal();
+    toast("Error: " + e.message);
+    console.error(e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  READER
+// ═══════════════════════════════════════════════════════════
+async function openReader(pdfMeta) {
+  state.current = pdfMeta;
+  showView('reader');
+  stopTTS();
+  document.getElementById('reader-title').textContent = pdfMeta.name;
+  document.getElementById('page-num-input').value = pdfMeta.lastPage || 1;
+
+  try {
+    showModal("📖 Opening…", "Loading pages…");
+    const pdfDoc = await pdfjsLib.getDocument(pdfMeta.downloadURL).promise;
+    state.pdfDoc     = pdfDoc;
+    state.totalPages = pdfDoc.numPages;
+    state.pageTexts  = {};
+    hideModal();
+
+    document.getElementById('page-num-input').max = pdfDoc.numPages;
+    document.getElementById('prev-btn').disabled  = true;
+    document.getElementById('next-btn').disabled  = pdfDoc.numPages <= 1;
+
+    await renderPage(pdfMeta.lastPage || 1);
+    loadRecording(pdfMeta);
+  } catch(e) {
+    hideModal();
+    toast("Couldn't open tome: " + e.message);
+    console.error(e);
+  }
+}
+
+async function renderPage(num) {
+  num = Math.max(1, Math.min(num, state.totalPages));
+  state.page = num;
+  document.getElementById('page-num-input').value       = num;
+  document.getElementById('page-indicator').textContent = `Page ${num} of ${state.totalPages}`;
+  document.getElementById('prev-btn').disabled          = num <= 1;
+  document.getElementById('next-btn').disabled          = num >= state.totalPages;
+
+  const page   = await state.pdfDoc.getPage(num);
+  const canvas = document.getElementById('pdf-canvas');
+  const ctx    = canvas.getContext('2d');
+  const maxW   = Math.min(document.getElementById('pdf-canvas-wrap').clientWidth - 24, 900);
+  const scale  = maxW / page.getViewport({ scale: 1 }).width;
+  const vp     = page.getViewport({ scale });
+
+  canvas.width  = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+  if (!state.pageTexts[num]) {
+    const tc = await page.getTextContent();
+    state.pageTexts[num] = tc.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  if (state.db && state.current) {
+    state.db.collection('pdfs').doc(state.current.id).update({ lastPage: num }).catch(() => {});
+  }
+}
+
+function goToPage(n) {
+  const num = parseInt(n, 10);
+  if (!isNaN(num)) renderPage(num);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TTS
+// ═══════════════════════════════════════════════════════════
+function populateVoices() {
+  const voices = speechSynthesis.getVoices();
+  const sel    = document.getElementById('voice-select');
+  sel.innerHTML = '';
+  const eng = voices.filter(v => v.lang.startsWith('en'));
+  const all = eng.length ? eng : voices;
+  all.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (v.default) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function getSelectedVoice() {
+  const all = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+  const voices = all.length ? all : speechSynthesis.getVoices();
+  return voices[parseInt(document.getElementById('voice-select').value, 10)] || null;
+}
+
+function startTTS() {
+  if (state.ttsActive) return;
+  const text = state.pageTexts[state.page];
+  if (!text) { toast("No readable text on this page"); return; }
+
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = getSelectedVoice();
+  u.rate  = parseFloat(document.getElementById('speed-slider').value);
+
+  u.onstart = () => { state.ttsActive = true; updateTTSUI(true); };
+  u.onend   = async () => {
+    state.ttsActive = false;
+    if (state.page < state.totalPages) {
+      await renderPage(state.page + 1);
+      startTTS();
+    } else {
+      updateTTSUI(false);
+      setTTSStatus("Finished reading.");
+    }
+  };
+  u.onerror = e => {
+    if (e.error !== 'interrupted') {
+      state.ttsActive = false;
+      updateTTSUI(false);
+      setTTSStatus("Playback stopped.");
+    }
+  };
+  u.onboundary = e => {
+    if (e.name === 'word') {
+      const words = text.split(' ');
+      const word  = words[Math.floor(e.charIndex / (text.length / words.length))] || '';
+      setTTSStatus(`Reading: "${word.trim()}"`);
+    }
+  };
+
+  state.utterance = u;
+  speechSynthesis.speak(u);
+}
+
+function stopTTS() {
+  speechSynthesis.cancel();
+  state.ttsActive = false;
+  updateTTSUI(false);
+  setTTSStatus("Paused.");
+}
+
+function toggleTTS() {
+  state.ttsActive ? stopTTS() : startTTS();
+}
+
+function updateTTSUI(playing) {
+  const btn = document.getElementById('tts-play-btn');
+  btn.innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
+  btn.classList.toggle('playing', playing);
+}
+
+function setTTSStatus(msg) {
+  document.getElementById('tts-status').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RECORDING
+// ═══════════════════════════════════════════════════════════
+function getSupportedMimeType() {
+  const types = [
+    'audio/webm;codecs=opus','audio/webm',
+    'audio/mp4;codecs=mp4a','audio/mp4',
+    'audio/ogg;codecs=opus',
+  ];
+  for (const t of types) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime   = getSupportedMimeType();
+    state.mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+    state.audioChunks   = [];
+    state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.audioChunks.push(e.data); };
+    state.mediaRecorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); await saveRecording(); };
+    state.mediaRecorder.start(250);
+    state.recActive    = true;
+    state.recStartTime = Date.now();
+    startRecTimer();
+    updateRecUI();
+  } catch(e) {
+    toast("Microphone access denied");
+    console.error(e);
+  }
+}
+
+function stopRecording() {
+  if (state.mediaRecorder && state.recActive) {
+    state.mediaRecorder.stop();
+    state.recActive = false;
+    stopRecTimer();
+    updateRecUI();
+  }
+}
+
+async function saveRecording() {
+  if (!state.audioChunks.length) return;
+  const mime    = getSupportedMimeType();
+  const ext     = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm';
+  const blob    = new Blob(state.audioChunks, { type: mime || 'audio/webm' });
+  state.recAudioURL = URL.createObjectURL(blob);
+  showRecordingSaved(state.recAudioURL);
+
+  if (state.db && state.current) {
+    try {
+      const path = `recordings/${state.current.id}/recording.${ext}`;
+      const ref  = state.storage.ref(path);
+      await ref.put(blob, { contentType: mime || 'audio/webm' });
+      const url  = await ref.getDownloadURL();
+      await state.db.collection('pdfs').doc(state.current.id).update({ recordingUrl: url });
+      state.current.recordingUrl = url;
+      toast("🎙 Voice saved to your library!");
+    } catch(e) {
+      toast("Saved locally — cloud sync failed");
+      console.error(e);
+    }
+  } else {
+    toast("🎙 Recording saved (configure Firebase to sync)");
+  }
+}
+
+function loadRecording(pdfMeta) {
+  const wrap  = document.getElementById('rec-saved-wrap');
+  const audio = document.getElementById('rec-playback');
+  if (pdfMeta.recordingUrl) {
+    audio.src = pdfMeta.recordingUrl;
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+    audio.src = '';
+  }
+}
+
+function showRecordingSaved(url) {
+  document.getElementById('rec-playback').src = url;
+  document.getElementById('rec-saved-wrap').style.display = 'block';
+}
+
+async function deleteRecording() {
+  if (!state.current || !confirm('Remove the voice recording for this PDF?')) return;
+  document.getElementById('rec-saved-wrap').style.display = 'none';
+  document.getElementById('rec-playback').src = '';
+  state.recAudioURL = null;
+  if (state.db && state.current.recordingUrl) {
+    try {
+      await state.storage.refFromURL(state.current.recordingUrl).delete();
+      await state.db.collection('pdfs').doc(state.current.id).update({ recordingUrl: null });
+      state.current.recordingUrl = null;
+      toast("Recording removed");
+    } catch(e) { toast("Couldn't remove from cloud"); }
+  }
+}
+
+function startRecTimer() {
+  const el = document.getElementById('rec-timer');
+  state.recTimerID = setInterval(() => {
+    const s = Math.floor((Date.now() - state.recStartTime) / 1000);
+    el.textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  }, 500);
+}
+function stopRecTimer() { clearInterval(state.recTimerID); }
+
+function updateRecUI() {
+  document.getElementById('rec-dot').classList.toggle('active', state.recActive);
+  document.getElementById('rec-label').textContent = state.recActive ? 'Recording your voice…' : 'Ready to record';
+  document.getElementById('rec-start-btn').disabled = state.recActive;
+  document.getElementById('rec-stop-btn').disabled  = !state.recActive;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DELETE PDF
+// ═══════════════════════════════════════════════════════════
+async function deletePDF() {
+  if (!state.current || !confirm(`Remove "${state.current.name}" from your collection?`)) return;
+  try {
+    stopTTS();
+    await state.storage.ref(state.current.storagePath).delete().catch(() => {});
+    if (state.current.recordingUrl) {
+      await state.storage.refFromURL(state.current.recordingUrl).delete().catch(() => {});
+    }
+    await state.db.collection('pdfs').doc(state.current.id).delete();
+    toast("Tome removed");
+    showView('library');
+    loadLibrary();
+  } catch(e) { toast("Couldn't remove: " + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(`view-${name}`).classList.add('active');
+  if (name === 'library') { stopTTS(); stopRecording(); }
+}
+
+function showModal(title, msg) {
+  document.getElementById('modal-title').textContent    = title;
+  document.getElementById('modal-msg').textContent      = msg;
+  document.getElementById('progress-fill').style.width  = '0%';
+  document.getElementById('upload-modal').classList.add('open');
+}
+function hideModal() { document.getElementById('upload-modal').classList.remove('open'); }
+function setProgress(pct, msg) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('modal-msg').textContent     = msg;
+}
+
+let toastTimer;
+function toast(msg, dur = 3500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), dur);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+  loadLibrary();
+
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.onvoiceschanged = populateVoices;
+    populateVoices();
+  }
+
+  // Upload
+  const fileInput = document.getElementById('file-input');
+  const dropZone  = document.getElementById('drop-zone');
+  document.getElementById('open-upload-btn').addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) uploadPDF(e.target.files[0]);
+    fileInput.value = '';
+  });
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) uploadPDF(e.dataTransfer.files[0]);
+  });
+
+  // Reader nav
+  document.getElementById('back-btn').addEventListener('click', () => showView('library'));
+  document.getElementById('delete-pdf-btn').addEventListener('click', deletePDF);
+
+  // Page nav
+  document.getElementById('prev-btn').addEventListener('click', () => { stopTTS(); renderPage(state.page - 1); });
+  document.getElementById('next-btn').addEventListener('click', () => { stopTTS(); renderPage(state.page + 1); });
+  document.getElementById('page-num-input').addEventListener('change', e => { stopTTS(); goToPage(e.target.value); });
+
+  // TTS
+  document.getElementById('tts-play-btn').addEventListener('click', toggleTTS);
+  document.getElementById('speed-slider').addEventListener('input', e => {
+    document.getElementById('speed-val').textContent = parseFloat(e.target.value).toFixed(1) + '×';
+  });
+  document.getElementById('voice-select').addEventListener('change', () => {
+    if (state.ttsActive) { stopTTS(); startTTS(); }
+  });
+
+  // Recording
+  document.getElementById('rec-start-btn').addEventListener('click', startRecording);
+  document.getElementById('rec-stop-btn') .addEventListener('click', stopRecording);
+  document.getElementById('rec-delete-btn').addEventListener('click', deleteRecording);
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn')  .forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+    });
+  });
+
+  // Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW:', e));
+  }
+});
+</script>
+</body>
+</html>
